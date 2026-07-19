@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { supabase, fetchPosts, insertPost, deletePost, type SBPost } from '../supabaseClient';
 import { Image, X, ChevronDown, Flame, Send } from 'lucide-react';
 import { PostCard, type Post } from '../components/PostCard';

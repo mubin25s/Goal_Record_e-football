@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   fetchComments, insertComment, fetchReaction, fetchReactionCounts,
   upsertReaction, deleteReaction, type SBComment,

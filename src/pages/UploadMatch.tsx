@@ -19,23 +19,23 @@ export const UploadMatch: React.FC<UploadMatchProps> = ({
   currentUsername,
   onUploadSuccess,
 }) => {
-  const [users, setUsers]               = useState<UserProfile[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const [submitting, setSubmitting]     = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [errorMsg, setErrorMsg]         = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
-  const [loserIsRegistered, setLoserIsRegistered]           = useState(true);
-  const [selectedLoserId, setSelectedLoserId]               = useState('');
-  const [selectedLoserUsername, setSelectedLoserUsername]   = useState('');
-  const [loserNameInput, setLoserNameInput]                 = useState('');
-  const [winnerScore, setWinnerScore]                       = useState('');
-  const [loserScore, setLoserScore]                         = useState('');
-  const [trollComment, setTrollComment]                     = useState('');
+  const [loserIsRegistered, setLoserIsRegistered] = useState(true);
+  const [selectedLoserId, setSelectedLoserId] = useState('');
+  const [selectedLoserUsername, setSelectedLoserUsername] = useState('');
+  const [loserNameInput, setLoserNameInput] = useState('');
+  const [winnerScore, setWinnerScore] = useState('');
+  const [loserScore, setLoserScore] = useState('');
+  const [trollComment, setTrollComment] = useState('');
 
-  const [imageFile, setImageFile]       = useState<File | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isDragOver, setIsDragOver]     = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // Load registered players from Supabase
   useEffect(() => {
@@ -85,7 +85,7 @@ export const UploadMatch: React.FC<UploadMatchProps> = ({
 
     if (!imageFile) { setErrorMsg('Upload a screenshot as evidence.'); return; }
 
-    const winVal  = parseInt(winnerScore);
+    const winVal = parseInt(winnerScore);
     const loseVal = parseInt(loserScore);
     if (isNaN(winVal) || isNaN(loseVal) || winVal < 0 || loseVal < 0) {
       setErrorMsg('Enter valid score numbers.');
@@ -118,14 +118,14 @@ export const UploadMatch: React.FC<UploadMatchProps> = ({
 
       // Save match record to Supabase Database
       await insertMatch({
-        winner_id:      currentUserId,
+        winner_id: currentUserId,
         winner_username: currentUsername,
-        loser_id:       loserIsRegistered ? selectedLoserId : null,
+        loser_id: loserIsRegistered ? selectedLoserId : null,
         loser_username: loserIsRegistered ? selectedLoserUsername : loserNameInput.trim(),
-        winner_score:   winVal,
-        loser_score:    loseVal,
+        winner_score: winVal,
+        loser_score: loseVal,
         screenshot_url: screenshotUrl,
-        troll_comment:  trollComment.trim() || null,
+        troll_comment: trollComment.trim() || null,
       });
 
       setUploadProgress(100);
