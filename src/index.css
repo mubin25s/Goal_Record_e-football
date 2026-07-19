@@ -206,12 +206,12 @@ p {
 .form-input:focus {
   outline: none;
   border-color: var(--primary-light);
-  box-shadow: 0 0 0 3px rgba(169, 14, 2, 0.25);
-  background: rgba(43, 6, 6, 0.8);
+  box-shadow: 0 0 0 3px rgba(169, 14, 2, 0.15);
+  background: #FFFFFF;
 }
 
 .form-input::placeholder {
-  color: rgba(209, 191, 167, 0.4);
+  color: #A0A0A0;
 }
 
 /* Navigation System */
