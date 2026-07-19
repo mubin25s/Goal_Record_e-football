@@ -6,23 +6,10 @@ const supabaseKey  = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-export interface SBPost {
-  id: string;
-  author_id: string;
-  author_name: string;
-  author_avatar: string | null;
-  content: string;
-  image_url: string | null;
-  category: string;
-  created_at: string;
-}
-
 export interface SBComment {
   id: string;
-  post_id: string;
-  author_id: string;
-  author_name: string;
-  author_avatar: string | null;
+  match_id: string;
+  user_id: string;
   content: string;
   created_at: string;
 }
@@ -78,75 +65,55 @@ export const updateProfileUsername = async (uid: string, username: string) => {
   if (error) throw new Error(error.message);
 };
 
-// ─── Post helpers ─────────────────────────────────────────────────────────────
-export const fetchPosts = async (): Promise<SBPost[]> => {
+// ─── Comment helpers (on Matches) ─────────────────────────────────────────────
+export const fetchMatchComments = async (matchId: string): Promise<SBComment[]> => {
   const { data, error } = await supabase
-    .from('posts')
+    .from('match_comments')
     .select('*')
-    .order('created_at', { ascending: false });
-  if (error) { console.error('fetchPosts error:', error.message); return []; }
-  return (data as SBPost[]) ?? [];
-};
-
-export const insertPost = async (post: Omit<SBPost, 'id' | 'created_at'>) => {
-  const { error } = await supabase.from('posts').insert(post);
-  if (error) throw new Error(error.message);
-};
-
-export const deletePost = async (postId: string) => {
-  const { error } = await supabase.from('posts').delete().eq('id', postId);
-  if (error) throw new Error(error.message);
-};
-
-// ─── Comment helpers ──────────────────────────────────────────────────────────
-export const fetchComments = async (postId: string): Promise<SBComment[]> => {
-  const { data, error } = await supabase
-    .from('post_comments')
-    .select('*')
-    .eq('post_id', postId)
+    .eq('match_id', matchId)
     .order('created_at', { ascending: true });
   if (error) return [];
   return (data as SBComment[]) ?? [];
 };
 
-export const insertComment = async (comment: Omit<SBComment, 'id' | 'created_at'>) => {
-  const { error } = await supabase.from('post_comments').insert(comment);
+export const insertMatchComment = async (comment: Omit<SBComment, 'id' | 'created_at'>) => {
+  const { error } = await supabase.from('match_comments').insert(comment);
   if (error) throw new Error(error.message);
 };
 
-// ─── Reaction helpers ─────────────────────────────────────────────────────────
-export const fetchReaction = async (postId: string, userId: string): Promise<string | null> => {
+// ─── Reaction helpers (on Matches) ────────────────────────────────────────────
+export const fetchMatchReaction = async (matchId: string, userId: string): Promise<string | null> => {
   const { data } = await supabase
-    .from('post_reactions')
+    .from('match_reactions')
     .select('type')
-    .eq('post_id', postId)
+    .eq('match_id', matchId)
     .eq('user_id', userId)
     .single();
   return data?.type ?? null;
 };
 
-export const fetchReactionCounts = async (postId: string): Promise<Record<string, number>> => {
+export const fetchMatchReactionCounts = async (matchId: string): Promise<Record<string, number>> => {
   const { data } = await supabase
-    .from('post_reactions')
+    .from('match_reactions')
     .select('type')
-    .eq('post_id', postId);
+    .eq('match_id', matchId);
   const counts: Record<string, number> = { like: 0, love: 0, haha: 0, sad: 0, wow: 0 };
   (data ?? []).forEach((r: any) => { counts[r.type] = (counts[r.type] ?? 0) + 1; });
   return counts;
 };
 
-export const upsertReaction = async (postId: string, userId: string, type: string) => {
+export const upsertMatchReaction = async (matchId: string, userId: string, type: string) => {
   const { error } = await supabase
-    .from('post_reactions')
-    .upsert({ post_id: postId, user_id: userId, type }, { onConflict: 'post_id,user_id' });
+    .from('match_reactions')
+    .upsert({ match_id: matchId, user_id: userId, type }, { onConflict: 'match_id,user_id' });
   if (error) throw new Error(error.message);
 };
 
-export const deleteReaction = async (postId: string, userId: string) => {
+export const deleteMatchReaction = async (matchId: string, userId: string) => {
   const { error } = await supabase
-    .from('post_reactions')
+    .from('match_reactions')
     .delete()
-    .eq('post_id', postId)
+    .eq('match_id', matchId)
     .eq('user_id', userId);
   if (error) throw new Error(error.message);
 };
@@ -177,7 +144,6 @@ export const insertMatch = async (match: Omit<SBMatch, 'id' | 'created_at'>) => 
 };
 
 // ─── Storage helpers ──────────────────────────────────────────────────────────
-/** Compress image on client before upload to reduce size 5-10x */
 const compressImage = (file: File, maxPx = 900, quality = 0.72): Promise<Blob> =>
   new Promise((resolve, reject) => {
     const img = new Image();
@@ -205,10 +171,6 @@ const compressImage = (file: File, maxPx = 900, quality = 0.72): Promise<Blob> =
     img.src = url;
   });
 
-/**
- * Upload a match screenshot to Supabase Storage.
- * Returns the public URL. Compresses image first for speed.
- */
 export const uploadMatchScreenshot = async (
   file: File,
   userId: string,

@@ -1,43 +1,28 @@
 import { useState, useEffect } from 'react';
 import {
-  fetchComments, insertComment, fetchReaction, fetchReactionCounts,
-  upsertReaction, deleteReaction, type SBComment,
+  fetchMatchComments, insertMatchComment, fetchMatchReaction, fetchMatchReactionCounts,
+  upsertMatchReaction, deleteMatchReaction, type SBMatch, type SBComment,
 } from '../supabaseClient';
 import {
   MessageSquare, ChevronDown, ChevronUp, Send,
-  Trash2, ThumbsUp, Heart, Laugh, Frown, Zap,
+  ThumbsUp, Heart, Laugh, Frown, Zap, Award, Flame,
 } from 'lucide-react';
 
-// ─── Types ───────────────────────────────────────────────────────────────────
-export interface Post {
-  id: string;
-  authorId: string;
-  authorName: string;
-  authorAvatar: string | null;
-  content: string;
-  imageUrl: string | null;
-  category: string;
-  createdAt: any;
-  reactionCounts: { like: number; love: number; haha: number; sad: number; wow: number };
-}
-
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface Comment {
   id: string;
   authorId: string;
   authorName: string;
-  authorAvatar: string | null;
   content: string;
-  createdAt: any;
+  createdAt: string;
 }
 
 interface PostCardProps {
-  post: Post;
+  match: SBMatch;
   currentUser: { uid: string; displayName: string } | null;
-  onDelete: (postId: string) => void;
   onAuthRequired: () => void;
 }
 
-// ─── Reaction config ─────────────────────────────────────────────────────────
 type ReactionType = 'like' | 'love' | 'haha' | 'sad' | 'wow';
 
 const REACTIONS: { type: ReactionType; emoji: string; label: string; Icon: React.FC<any> }[] = [
@@ -48,43 +33,32 @@ const REACTIONS: { type: ReactionType; emoji: string; label: string; Icon: React
   { type: 'sad',  emoji: '😢', label: 'Sad',     Icon: Frown    },
 ];
 
-const CATEGORY_COLORS: Record<string, string> = {
-  Announcement: 'rgba(169,14,2,0.85)',
-  Question:     'rgba(59,130,246,0.85)',
-  Discussion:   'rgba(16,185,129,0.85)',
-  Achievement:  'rgba(234,179,8,0.85)',
-  Other:        'rgba(107,114,128,0.85)',
-};
-
-// ─── Avatar ───────────────────────────────────────────────────────────────────
-const Avatar: React.FC<{ name: string; url: string | null; size?: number }> = ({ name, url, size = 44 }) => (
+// Simple initial avatar
+const Avatar: React.FC<{ name: string; size?: number }> = ({ name, size = 40 }) => (
   <div style={{
-    width: size, height: size, borderRadius: '50%', flexShrink: 0, overflow: 'hidden',
-    backgroundColor: 'var(--primary)', color: 'var(--text-dark)',
+    width: size, height: size, borderRadius: '50%', flexShrink: 0,
+    backgroundColor: 'var(--primary)', color: 'var(--accent)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontWeight: 700, fontSize: size * 0.35,
-    border: '2px solid var(--border-color-glow)',
+    fontWeight: 700, fontSize: size * 0.38,
+    border: '1.5px solid var(--border-color)',
+    fontFamily: 'var(--font-display)',
   }}>
-    {url
-      ? <img src={url} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-      : name.substring(0, 2).toUpperCase()
-    }
+    {name.substring(0, 2).toUpperCase()}
   </div>
 );
 
-// ─── PostCard ─────────────────────────────────────────────────────────────────
-export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onDelete, onAuthRequired }) => {
-  const [comments, setComments] = useState<Comment[]>([]);
-  const [commentsOpen, setCommentsOpen] = useState(false);
-  const [commentText, setCommentText] = useState('');
-  const [posting, setPosting] = useState(false);
-  const [myReaction, setMyReaction] = useState<ReactionType | null>(null);
-  const [counts, setCounts] = useState(post.reactionCounts ?? { like: 0, love: 0, haha: 0, sad: 0, wow: 0 });
+export const PostCard: React.FC<PostCardProps> = ({ match, currentUser, onAuthRequired }) => {
+  const [comments, setComments]           = useState<Comment[]>([]);
+  const [commentsOpen, setCommentsOpen]   = useState(false);
+  const [commentText, setCommentText]     = useState('');
+  const [posting, setPosting]             = useState(false);
+  const [myReaction, setMyReaction]       = useState<ReactionType | null>(null);
+  const [counts, setCounts]               = useState<Record<ReactionType, number>>({ like: 0, love: 0, haha: 0, sad: 0, wow: 0 });
   const [reactionBarOpen, setReactionBarOpen] = useState(false);
 
-  // Load reaction counts + my reaction
+  // Load reactions on load
   useEffect(() => {
-    fetchReactionCounts(post.id).then(res => {
+    fetchMatchReactionCounts(match.id).then(res => {
       setCounts({
         like: res.like || 0,
         love: res.love || 0,
@@ -94,81 +68,78 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onDelete,
       });
     });
     if (currentUser) {
-      fetchReaction(post.id, currentUser.uid).then(type => {
+      fetchMatchReaction(match.id, currentUser.uid).then(type => {
         if (type) setMyReaction(type as ReactionType);
       });
     }
-  }, [post.id, currentUser]);
+  }, [match.id, currentUser]);
 
-  // Load comments when expanded
+  // Load comments when comments area is opened
   useEffect(() => {
     if (!commentsOpen) return;
-    fetchComments(post.id).then(rows => {
+    fetchMatchComments(match.id).then(rows => {
+      // For comments, we can fetch profiles to resolve usernames
       setComments(rows.map((r: SBComment) => ({
-        id:          r.id,
-        authorId:    r.author_id,
-        authorName:  r.author_name,
-        authorAvatar: r.author_avatar,
-        content:     r.content,
-        createdAt:   { toDate: () => new Date(r.created_at) },
+        id:        r.id,
+        authorId:  r.user_id,
+        authorName: r.user_id === currentUser?.uid ? currentUser.displayName : `Player (${r.user_id.substring(0, 5)})`,
+        content:   r.content,
+        createdAt: r.created_at,
       })));
     });
-  }, [commentsOpen, post.id]);
+  }, [commentsOpen, match.id, currentUser]);
 
-  // ── React ──────────────────────────────────────────────────────────────────
   const handleReact = async (type: ReactionType) => {
     if (!currentUser) { onAuthRequired(); return; }
     setReactionBarOpen(false);
 
     if (myReaction === type) {
-      await deleteReaction(post.id, currentUser.uid);
-      setCounts(prev => ({ ...prev, [type]: Math.max(0, (prev[type] ?? 0) - 1) }));
+      await deleteMatchReaction(match.id, currentUser.uid);
+      setCounts(prev => ({ ...prev, [type]: Math.max(0, prev[type] - 1) }));
       setMyReaction(null);
     } else {
       if (myReaction) {
-        setCounts(prev => ({ ...prev, [myReaction!]: Math.max(0, (prev[myReaction!] ?? 0) - 1) }));
+        setCounts(prev => ({ ...prev, [myReaction]: Math.max(0, prev[myReaction] - 1) }));
       }
-      await upsertReaction(post.id, currentUser.uid, type);
-      setCounts(prev => ({ ...prev, [type]: (prev[type] ?? 0) + 1 }));
+      await upsertMatchReaction(match.id, currentUser.uid, type);
+      setCounts(prev => ({ ...prev, [type]: (prev[type] || 0) + 1 }));
       setMyReaction(type);
     }
   };
 
-  // ── Comment ────────────────────────────────────────────────────────────────
   const handlePostComment = async () => {
     if (!currentUser) { onAuthRequired(); return; }
     const text = commentText.trim();
     if (!text || posting) return;
     setPosting(true);
-    // Optimistic
+
     const optimistic: Comment = {
-      id: 'temp-' + Date.now(),
-      authorId: currentUser.uid,
+      id:        'temp-' + Date.now(),
+      authorId:  currentUser.uid,
       authorName: currentUser.displayName,
-      authorAvatar: null,
-      content: text,
-      createdAt: { toDate: () => new Date() },
+      content:   text,
+      createdAt: new Date().toISOString(),
     };
     setComments(prev => [...prev, optimistic]);
     setCommentText('');
+
     try {
-      await insertComment({
-        post_id:      post.id,
-        author_id:    currentUser.uid,
-        author_name:  currentUser.displayName,
-        author_avatar: null,
-        content:      text,
+      await insertMatchComment({
+        match_id: match.id,
+        user_id:  currentUser.uid,
+        content:  text,
       });
-      // Refresh to get server ID
-      const fresh = await fetchComments(post.id);
+      // Refresh comments to get usernames and server timestamps
+      const fresh = await fetchMatchComments(match.id);
       setComments(fresh.map((r: SBComment) => ({
-        id:          r.id,
-        authorId:    r.author_id,
-        authorName:  r.author_name,
-        authorAvatar: r.author_avatar,
-        content:     r.content,
-        createdAt:   { toDate: () => new Date(r.created_at) },
+        id:        r.id,
+        authorId:  r.user_id,
+        authorName: r.user_id === currentUser?.uid ? currentUser.displayName : `Player (${r.user_id.substring(0, 5)})`,
+        content:   r.content,
+        createdAt: r.created_at,
       })));
+    } catch (err: any) {
+      alert('Could not comment: ' + err.message);
     } finally {
       setPosting(false);
     }
@@ -176,79 +147,116 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onDelete,
 
   const totalReactions = Object.values(counts).reduce((s, v) => s + v, 0);
   const myReactionData = REACTIONS.find(r => r.type === myReaction);
-  const formattedDate  = post.createdAt?.toDate
-    ? post.createdAt.toDate().toLocaleDateString(undefined, {
-        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
-      })
-    : 'Just now';
+  const dateLabel = new Date(match.created_at).toLocaleDateString(undefined, {
+    month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
 
   return (
-    <article className="post-card">
-
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="post-header">
-        <Avatar name={post.authorName} url={post.authorAvatar} />
+    <article className="post-card" style={{ padding: '20px' }}>
+      
+      {/* Header Info */}
+      <div className="post-header" style={{ marginBottom: '16px' }}>
+        <Avatar name={match.winner_username} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span className="post-author">{post.authorName}</span>
-            <span
-              className="post-category"
-              style={{ background: CATEGORY_COLORS[post.category] ?? CATEGORY_COLORS.Other }}
-            >
-              {post.category}
+            <span className="post-author" style={{ color: 'var(--accent)', fontWeight: 700 }}>
+              {match.winner_username}
+            </span>
+            <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(16,185,129,0.15)', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Award size={12} /> VICTORY
             </span>
           </div>
-          <span className="post-date">{formattedDate}</span>
+          <span className="post-date">{dateLabel}</span>
         </div>
-        {currentUser?.uid === post.authorId && (
-          <button
-            className="icon-btn danger"
-            onClick={() => onDelete(post.id)}
-            title="Delete post"
-          >
-            <Trash2 size={16} />
-          </button>
-        )}
       </div>
 
-      {/* ── Content ────────────────────────────────────────────────────────── */}
-      <div className="post-body">
-        <p className="post-content">{post.content}</p>
-        {post.imageUrl && (
-          <div className="post-image-wrap">
-            <img
-              src={post.imageUrl}
-              alt="Post attachment"
-              className="post-image"
-              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-            />
+      {/* Scoreboard Block */}
+      <div className="scoreboard-container" style={{
+        background: 'rgba(255, 255, 255, 0.02)',
+        border: '1.5px solid var(--border-color)',
+        borderRadius: '12px',
+        padding: '16px',
+        marginBottom: '16px',
+        textAlign: 'center',
+      }}>
+        <div className="score-matchup-row" style={{
+          display: 'flex',
+          justifyContent: 'space-around',
+          alignItems: 'center',
+          gap: '12px',
+          flexWrap: 'wrap',
+        }}>
+          {/* Winner Card */}
+          <div className="score-team-card">
+            <h4 style={{ color: 'var(--accent)', fontSize: '16px', fontWeight: 700 }}>{match.winner_username}</h4>
+            <div style={{ fontSize: '42px', fontWeight: 800, color: 'var(--success)', margin: '4px 0' }}>{match.winner_score}</div>
+            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Winner</span>
           </div>
-        )}
+
+          <div style={{ fontSize: '20px', fontWeight: 600, color: 'var(--text-muted)', opacity: 0.5 }}>VS</div>
+
+          {/* Loser Card */}
+          <div className="score-team-card">
+            <h4 style={{ color: 'var(--text-primary)', fontSize: '16px', fontWeight: 600 }}>{match.loser_username}</h4>
+            <div style={{ fontSize: '42px', fontWeight: 800, color: 'var(--danger)', margin: '4px 0' }}>{match.loser_score}</div>
+            <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Opponent</span>
+          </div>
+        </div>
       </div>
 
-      {/* ── Reaction summary ───────────────────────────────────────────────── */}
-      {totalReactions > 0 && (
-        <div className="reaction-summary">
-          {REACTIONS.filter(r => (counts[r.type] ?? 0) > 0).map(r => (
-            <span key={r.type}>{r.emoji}</span>
-          ))}
-          <span className="reaction-count">{totalReactions}</span>
+      {/* Roast Balloon / Troll comment */}
+      {match.troll_comment && (
+        <div className="roast-quote-balloon" style={{
+          background: 'rgba(169, 14, 2, 0.05)',
+          borderLeft: '4px solid var(--primary)',
+          borderRadius: '0 8px 8px 0',
+          padding: '12px 16px',
+          marginBottom: '16px',
+          display: 'flex',
+          gap: '10px',
+          alignItems: 'flex-start',
+        }}>
+          <Flame size={16} style={{ color: 'var(--primary)', flexShrink: 0, marginTop: '2px' }} />
+          <p style={{ fontStyle: 'italic', fontSize: '14px', color: 'var(--text-primary)', lineHeight: 1.5, margin: 0 }}>
+            "{match.troll_comment}"
+          </p>
         </div>
       )}
 
-      {/* ── Action bar ─────────────────────────────────────────────────────── */}
-      <div className="post-actions">
+      {/* Screen Evidence Upload */}
+      {match.screenshot_url && (
+        <div className="post-image-wrap" style={{ borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-color)', marginBottom: '16px' }}>
+          <img
+            src={match.screenshot_url}
+            alt="Match Scoreboard Evidence"
+            style={{ width: '100%', maxHeight: '400px', objectFit: 'contain', background: '#0a0a0a', display: 'block' }}
+          />
+        </div>
+      )}
 
-        {/* Like / Reaction picker */}
-        <div className="reaction-wrap" onMouseLeave={() => setReactionBarOpen(false)}>
+      {/* Reactions Summary */}
+      {totalReactions > 0 && (
+        <div className="reaction-summary" style={{ display: 'flex', gap: '4px', alignItems: 'center', marginBottom: '12px' }}>
+          {REACTIONS.filter(r => (counts[r.type] || 0) > 0).map(r => (
+            <span key={r.type} title={r.label} style={{ fontSize: '14px' }}>{r.emoji}</span>
+          ))}
+          <span className="reaction-count" style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '4px' }}>{totalReactions}</span>
+        </div>
+      )}
+
+      {/* Action Bar */}
+      <div className="post-actions" style={{ display: 'flex', borderTop: '1px solid var(--border-color)', paddingTop: '10px' }}>
+        {/* React Button */}
+        <div className="reaction-wrap" style={{ flex: 1 }} onMouseLeave={() => setReactionBarOpen(false)}>
           <button
             className={`action-btn${myReaction ? ' reacted' : ''}`}
             onMouseEnter={() => setReactionBarOpen(true)}
             onClick={() => {
               if (!currentUser) { onAuthRequired(); return; }
-              if (myReaction) handleReact(myReaction); // toggle off
+              if (myReaction) handleReact(myReaction);
               else handleReact('like');
             }}
+            style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
           >
             {myReactionData ? myReactionData.emoji : '👍'}
             <span>{myReactionData ? myReactionData.label : 'Like'}</span>
@@ -265,7 +273,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onDelete,
                 >
                   <span className="reaction-emoji">{r.emoji}</span>
                   <span className="reaction-label">{r.label}</span>
-                  {(counts[r.type] ?? 0) > 0 && (
+                  {(counts[r.type] || 0) > 0 && (
                     <span className="reaction-mini-count">{counts[r.type]}</span>
                   )}
                 </button>
@@ -274,67 +282,67 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onDelete,
           )}
         </div>
 
-        {/* Comment toggle */}
+        {/* Comment Toggle */}
         <button
           className="action-btn"
-          onClick={() => {
-            if (!commentsOpen && !currentUser) {
-              // Guests CAN read comments — just open them
-            }
-            setCommentsOpen(o => !o);
-          }}
+          style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}
+          onClick={() => setCommentsOpen(o => !o)}
         >
           <MessageSquare size={18} />
-          <span>
-            {commentsOpen ? 'Hide' : 'Comment'}
-            {comments.length > 0 || !commentsOpen ? '' : ''}
-          </span>
+          <span>Comment</span>
           {commentsOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
       </div>
 
-      {/* ── Comments ───────────────────────────────────────────────────────── */}
+      {/* Comments Drawer */}
       {commentsOpen && (
-        <div className="comments-section">
-          {/* Comment list */}
+        <div className="comments-section" style={{ borderTop: '1.5px solid var(--border-color)', marginTop: '14px', paddingTop: '14px' }}>
           {comments.length === 0 ? (
-            <p className="comments-empty">No comments yet. Be the first!</p>
+            <p className="comments-empty" style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '12px 0' }}>
+              No comments yet. Write some banter!
+            </p>
           ) : (
-            <div className="comments-list">
+            <div className="comments-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
               {comments.map(c => (
-                <div key={c.id} className="comment-item">
-                  <Avatar name={c.authorName} url={null} size={32} />
-                  <div className="comment-bubble">
-                    <span className="comment-author">{c.authorName}</span>
-                    <p className="comment-text">{c.content}</p>
+                <div key={c.id} className="comment-item" style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+                  <Avatar name={c.authorName} size={30} />
+                  <div className="comment-bubble" style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px 14px', borderRadius: '12px', flex: 1 }}>
+                    <span className="comment-author" style={{ display: 'block', fontWeight: 600, fontSize: '13px', color: 'var(--accent)', marginBottom: '3px' }}>
+                      {c.authorName}
+                    </span>
+                    <p className="comment-text" style={{ margin: 0, fontSize: '13.5px', color: 'var(--text-primary)', lineHeight: 1.4 }}>
+                      {c.content}
+                    </p>
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Comment input */}
+          {/* Comment Input */}
           {currentUser ? (
-            <div className="comment-input-row">
-              <Avatar name={currentUser.displayName} url={null} size={32} />
+            <div className="comment-input-row" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              <Avatar name={currentUser.displayName} size={30} />
               <input
                 type="text"
                 className="form-input comment-input"
-                placeholder="Write a comment…"
+                placeholder="Roast this victory/loss..."
                 value={commentText}
                 onChange={e => setCommentText(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') handlePostComment(); }}
+                style={{ flex: 1 }}
               />
               <button
                 className="btn btn-primary icon-only"
                 onClick={handlePostComment}
                 disabled={posting || !commentText.trim()}
+                style={{ padding: '10px' }}
               >
-                <Send size={16} />
+                <Send size={15} />
               </button>
             </div>
           ) : (
-            <button className="auth-prompt-btn" onClick={onAuthRequired}>
+            <button className="auth-prompt-btn" onClick={onAuthRequired} style={{ width: '100%', padding: '12px', textAlign: 'center', background: 'rgba(255, 255, 255, 0.02)', border: '1px dashed var(--border-color)', borderRadius: '8px', color: 'var(--text-muted)', fontSize: '13px', cursor: 'pointer' }}>
               🔒 Log in to comment
             </button>
           )}
