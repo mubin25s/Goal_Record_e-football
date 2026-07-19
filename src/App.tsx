@@ -14,8 +14,8 @@ function App() {
   const [profile, setProfile] = useState<{ username: string; avatarUrl?: string } | null>(null);
   const [currentPage, setCurrentPage] = useState<string>('feed');
   const [loading, setLoading] = useState(true);
-  // When true, show the login page (guest clicked "Log in")
   const [showLogin, setShowLogin] = useState(false);
+  const [feedKey, setFeedKey] = useState(0); // increment to force feed refresh
 
 
   useEffect(() => {
@@ -99,11 +99,12 @@ function App() {
           <Feed
             currentUser={currentUser}
             onLoginRequest={() => setShowLogin(true)}
+            feedKey={feedKey}
           />
         );
       case 'upload':
         return user
-          ? <UploadMatch currentUserId={user.uid} currentUsername={profile?.username || 'Player'} onUploadSuccess={() => setCurrentPage('feed')} />
+          ? <UploadMatch currentUserId={user.uid} currentUsername={profile?.username || 'Player'} onUploadSuccess={() => { setFeedKey(k => k + 1); setCurrentPage('feed'); }} />
           : null;
       case 'leaderboard':
         return <Leaderboard />;
@@ -122,6 +123,7 @@ function App() {
           <Feed
             currentUser={currentUser}
             onLoginRequest={() => setShowLogin(true)}
+            feedKey={feedKey}
           />
         );
     }

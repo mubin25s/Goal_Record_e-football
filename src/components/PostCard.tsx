@@ -21,6 +21,7 @@ interface PostCardProps {
   match: SBMatch;
   currentUser: { uid: string; displayName: string } | null;
   onAuthRequired: () => void;
+  onViewProfile: (uid: string) => void;
 }
 
 type ReactionType = 'like' | 'love' | 'haha' | 'sad' | 'wow';
@@ -47,7 +48,7 @@ const Avatar: React.FC<{ name: string; size?: number }> = ({ name, size = 40 }) 
   </div>
 );
 
-export const PostCard: React.FC<PostCardProps> = ({ match, currentUser, onAuthRequired }) => {
+export const PostCard: React.FC<PostCardProps> = ({ match, currentUser, onAuthRequired, onViewProfile }) => {
   const [comments, setComments]           = useState<Comment[]>([]);
   const [commentsOpen, setCommentsOpen]   = useState(false);
   const [commentText, setCommentText]     = useState('');
@@ -159,9 +160,12 @@ export const PostCard: React.FC<PostCardProps> = ({ match, currentUser, onAuthRe
         <Avatar name={match.winner_username} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            <span className="post-author" style={{ color: 'var(--accent)', fontWeight: 700 }}>
+            <button
+              onClick={() => onViewProfile(match.winner_id)}
+              style={{ background: 'transparent', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '15px', color: 'var(--accent)' }}
+            >
               {match.winner_username}
-            </span>
+            </button>
             <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 8px', borderRadius: '4px', backgroundColor: 'rgba(16,185,129,0.15)', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Award size={12} /> VICTORY
             </span>
@@ -188,7 +192,7 @@ export const PostCard: React.FC<PostCardProps> = ({ match, currentUser, onAuthRe
         }}>
           {/* Winner Card */}
           <div className="score-team-card">
-            <h4 style={{ color: 'var(--accent)', fontSize: '16px', fontWeight: 700 }}>{match.winner_username}</h4>
+            <button onClick={() => onViewProfile(match.winner_id)} style={{ background:'none', border:'none', cursor:'pointer', fontFamily:'var(--font-display)', fontWeight:700, fontSize:'16px', color:'var(--accent)', padding:0 }}>{match.winner_username}</button>
             <div style={{ fontSize: '42px', fontWeight: 800, color: 'var(--success)', margin: '4px 0' }}>{match.winner_score}</div>
             <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Winner</span>
           </div>
@@ -197,7 +201,7 @@ export const PostCard: React.FC<PostCardProps> = ({ match, currentUser, onAuthRe
 
           {/* Loser Card */}
           <div className="score-team-card">
-            <h4 style={{ color: 'var(--text-primary)', fontSize: '16px', fontWeight: 600 }}>{match.loser_username}</h4>
+            <button onClick={() => match.loser_id && onViewProfile(match.loser_id)} style={{ background:'none', border:'none', cursor: match.loser_id ? 'pointer' : 'default', fontFamily:'var(--font-display)', fontWeight:600, fontSize:'16px', color:'var(--text-primary)', padding:0 }}>{match.loser_username}</button>
             <div style={{ fontSize: '42px', fontWeight: 800, color: 'var(--danger)', margin: '4px 0' }}>{match.loser_score}</div>
             <span style={{ fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Opponent</span>
           </div>
