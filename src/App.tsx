@@ -49,14 +49,12 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
-
-  const handleProfileUpdate = (username: string, avatarUrl?: string) => {
-    setProfile(prev => prev ? { ...prev, username, avatarUrl: avatarUrl ?? prev.avatarUrl } : null);
+  const handleProfileUpdate = (newUsername: string, newAvatarUrl?: string) => {
+    setProfile({ username: newUsername, avatarUrl: newAvatarUrl });
   };
 
-  const handleLogout = async () => {
-    await auth.signOut();
+  const handleLogout = () => {
+    setUser(null);
     setProfile(null);
     setCurrentPage('feed');
   };
@@ -65,11 +63,6 @@ function App() {
   const currentUser = user
     ? { uid: user.uid, displayName: profile?.username || user.displayName || 'User', avatarUrl: profile?.avatarUrl }
     : null;
-
-  const navigateToProfile = (uid: string) => {
-    setSelectedProfileId(uid);
-    setCurrentPage('profile');
-  };
 
   if (loading) {
     return (
@@ -106,7 +99,6 @@ function App() {
           <Feed
             currentUser={currentUser}
             onLoginRequest={() => setShowLogin(true)}
-            onViewProfile={navigateToProfile}
           />
         );
       case 'upload':
@@ -114,15 +106,13 @@ function App() {
           ? <UploadMatch currentUserId={user.uid} currentUsername={profile?.username || 'Player'} onUploadSuccess={() => setCurrentPage('feed')} />
           : null;
       case 'leaderboard':
-        return <Leaderboard onViewProfile={navigateToProfile} />;
+        return <Leaderboard />;
       case 'profile':
-        const targetId = selectedProfileId || user?.uid;
-        return targetId
+        return user
           ? (
             <Profile
-              currentUserId={targetId}
-              isOwnProfile={targetId === user?.uid}
-              userEmail={targetId === user?.uid ? user?.email || '' : ''}
+              currentUserId={user.uid}
+              userEmail={user.email || ''}
               onProfileUpdate={handleProfileUpdate}
             />
           )
@@ -132,7 +122,6 @@ function App() {
           <Feed
             currentUser={currentUser}
             onLoginRequest={() => setShowLogin(true)}
-            onViewProfile={navigateToProfile}
           />
         );
     }
@@ -142,10 +131,7 @@ function App() {
     <div className="app-container">
       <Navigation
         currentPage={currentPage}
-        setCurrentPage={(page) => {
-          if (page === 'profile') setSelectedProfileId(null);
-          setCurrentPage(page);
-        }}
+        setCurrentPage={setCurrentPage}
         username={profile?.username || 'Guest'}
         avatarUrl={profile?.avatarUrl}
         onLogout={handleLogout}

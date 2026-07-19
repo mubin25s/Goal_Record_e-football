@@ -5,10 +5,9 @@ import { PostCard } from '../components/PostCard';
 interface FeedProps {
   currentUser: { uid: string; displayName: string; avatarUrl?: string } | null;
   onLoginRequest: () => void;
-  onViewProfile: (uid: string) => void;
 }
 
-export const Feed: React.FC<FeedProps> = ({ currentUser, onLoginRequest, onViewProfile }) => {
+export const Feed: React.FC<FeedProps> = ({ currentUser, onLoginRequest }) => {
   const [matches, setMatches]           = useState<SBMatch[]>([]);
   const [loading, setLoading]           = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -21,13 +20,16 @@ export const Feed: React.FC<FeedProps> = ({ currentUser, onLoginRequest, onViewP
       .finally(() => setLoading(false));
   }, []);
 
-  // ⚡ Supabase real-time: re-fetch full list (with joins) on new match
+  // ⚡ Supabase real-time updates for new matches submitted
   useEffect(() => {
     const channel = supabase
       .channel('public:matches')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'matches' }, () => {
-        // Re-fetch with joins so avatar_url etc. are included
-        fetchAllMatches().then(setMatches).catch(console.error);
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'matches' }, payload => {
+        const newMatch = payload.new as SBMatch;
+        setMatches(prev => {
+          if (prev.some(m => m.id === newMatch.id)) return prev;
+          return [newMatch, ...prev];
+        });
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -64,7 +66,6 @@ export const Feed: React.FC<FeedProps> = ({ currentUser, onLoginRequest, onViewP
               match={match}
               currentUser={currentUser}
               onAuthRequired={handleAuthRequired}
-              onViewProfile={onViewProfile}
             />
           ))}
         </div>

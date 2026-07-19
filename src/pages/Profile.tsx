@@ -8,7 +8,6 @@ import { Settings, Check, Calendar, Activity } from 'lucide-react';
 interface ProfileProps {
   currentUserId: string;
   userEmail: string;
-  isOwnProfile?: boolean;
   onProfileUpdate: (username: string, avatarUrl?: string) => void;
 }
 
@@ -34,7 +33,7 @@ const toMatch = (r: SBMatch): Match => ({
   createdAt:     r.created_at,
 });
 
-export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, isOwnProfile = true, onProfileUpdate }) => {
+export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onProfileUpdate }) => {
   const [username, setUsername]   = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
   const [updating, setUpdating]   = useState(false);
@@ -132,10 +131,8 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, isOw
   return (
     <div style={{ maxWidth: '750px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
       <div>
-        <h2 style={{ fontSize: '32px', marginBottom: '8px' }}>
-          {isOwnProfile ? 'Trophy Room & Profile' : `${username}'s Profile`}
-        </h2>
-        <p>{isOwnProfile ? 'Personal analytics, achievements, and account settings.' : 'Match history and stats.'}</p>
+        <h2 style={{ fontSize: '32px', marginBottom: '8px' }}>Trophy Room &amp; Profile</h2>
+        <p>Personal analytics, achievements, and account settings.</p>
       </div>
 
       {/* User Hero Card */}
@@ -148,9 +145,7 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, isOw
         </div>
         <div style={{ flex: 1, minWidth: '200px' }}>
           <h3 style={{ fontSize: '24px', color: 'var(--text-primary)' }}>{username}</h3>
-          {isOwnProfile && userEmail && (
-            <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '8px' }}>{userEmail}</p>
-          )}
+          <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '8px' }}>{userEmail}</p>
           <div style={{ display: 'inline-flex', background: 'rgba(169,14,2,0.08)', padding: '6px 14px', borderRadius: '20px', border: '1px solid rgba(169,14,2,0.2)', fontSize: '13px', fontWeight: 'bold', color: titleColor }}>
             {userTitle}
           </div>
@@ -176,8 +171,7 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, isOw
       {/* Edit + History */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
 
-        {/* Edit Profile — only for own profile */}
-        {isOwnProfile && (
+        {/* Edit Profile */}
         <section className="card" style={{ alignSelf: 'start' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
             <Settings size={20} style={{ color: 'var(--accent)' }} />
@@ -198,7 +192,6 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, isOw
             </button>
           </form>
         </section>
-        )}
 
         {/* Recent Battles */}
         <section className="card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
