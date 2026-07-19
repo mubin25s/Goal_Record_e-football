@@ -1,0 +1,62 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- USERS ---
+    // Public read for display names/avatars in posts
+    // Only the owner can write their own profile
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if request.auth != null && request.auth.uid == userId;
+      allow update: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // --- POSTS (school social feed) ---
+    // Anyone (even guests) can read posts
+    // Only authenticated users can create posts (as themselves)
+    // Only the post author can delete or update their own post
+    match /posts/{postId} {
+      allow read: if true;
+      allow create: if request.auth != null
+                    && request.resource.data.authorId == request.auth.uid;
+      allow update: if request.auth != null
+                    && resource.data.authorId == request.auth.uid;
+      allow delete: if request.auth != null
+                    && resource.data.authorId == request.auth.uid;
+
+      // --- COMMENTS (subcollection under posts) ---
+      // Anyone can read, only authenticated users can post/delete their own
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if request.auth != null
+                      && request.resource.data.authorId == request.auth.uid;
+        allow delete: if request.auth != null
+                      && resource.data.authorId == request.auth.uid;
+      }
+
+      // --- REACTIONS (one doc per user under each post) ---
+      // Anyone can read counts, auth required to write
+      match /reactions/{userId} {
+        allow read: if true;
+        allow write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // --- MATCHES (legacy — keep for existing data) ---
+    match /matches/{matchId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.winnerId == request.auth.uid;
+      allow delete: if request.auth != null
+                    && resource.data.winnerId == request.auth.uid;
+
+      match /comments/{commentId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null
+                      && request.resource.data.userId == request.auth.uid;
+        allow delete: if request.auth != null
+                      && resource.data.userId == request.auth.uid;
+      }
+    }
+  }
+}
