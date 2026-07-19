@@ -10,6 +10,13 @@ Visit the live application here:
 
 ---
 
+## 🛠️ Tech Stack
+- **Frontend**: React, TypeScript, Vite, Vanilla CSS, Lucide Icons
+- **Database & Auth**: Firebase Authentication & Cloud Firestore
+- **File Storage**: Supabase Storage (`matches` bucket)
+
+---
+
 ## 📸 Scoring Demonstration
 Below is a demonstration of an eFootball match stats screen which users upload as evidence when submitting scores:
 
