@@ -12,6 +12,7 @@ export interface SBComment {
   user_id: string;
   content: string;
   created_at: string;
+  profiles?: { username: string; avatar_url: string | null } | null;
 }
 
 export interface SBMatch {
@@ -25,6 +26,8 @@ export interface SBMatch {
   screenshot_url: string;
   troll_comment: string | null;
   created_at: string;
+  winner?: { avatar_url: string | null; username: string } | null;
+  loser?: { avatar_url: string | null; username: string } | null;
 }
 
 export interface SBProfile {
@@ -69,7 +72,7 @@ export const updateProfileUsername = async (uid: string, username: string) => {
 export const fetchMatchComments = async (matchId: string): Promise<SBComment[]> => {
   const { data, error } = await supabase
     .from('match_comments')
-    .select('*')
+    .select('*, profiles(username, avatar_url)')
     .eq('match_id', matchId)
     .order('created_at', { ascending: true });
   if (error) return [];
@@ -122,7 +125,7 @@ export const deleteMatchReaction = async (matchId: string, userId: string) => {
 export const fetchAllMatches = async (): Promise<SBMatch[]> => {
   const { data, error } = await supabase
     .from('matches')
-    .select('*')
+    .select('*, winner:profiles!winner_id(avatar_url, username), loser:profiles!loser_id(avatar_url, username)')
     .order('created_at', { ascending: false });
   if (error) return [];
   return (data as SBMatch[]) ?? [];
@@ -130,8 +133,16 @@ export const fetchAllMatches = async (): Promise<SBMatch[]> => {
 
 export const fetchUserMatches = async (uid: string): Promise<SBMatch[]> => {
   const [wonRes, lostRes] = await Promise.all([
-    supabase.from('matches').select('*').eq('winner_id', uid).order('created_at', { ascending: false }),
-    supabase.from('matches').select('*').eq('loser_id', uid).order('created_at', { ascending: false }),
+    supabase
+      .from('matches')
+      .select('*, winner:profiles!winner_id(avatar_url, username), loser:profiles!loser_id(avatar_url, username)')
+      .eq('winner_id', uid)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('matches')
+      .select('*, winner:profiles!winner_id(avatar_url, username), loser:profiles!loser_id(avatar_url, username)')
+      .eq('loser_id', uid)
+      .order('created_at', { ascending: false }),
   ]);
   const won  = (wonRes.data  as SBMatch[]) ?? [];
   const lost = (lostRes.data as SBMatch[]) ?? [];

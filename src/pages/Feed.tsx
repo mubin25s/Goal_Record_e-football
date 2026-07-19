@@ -5,9 +5,10 @@ import { PostCard } from '../components/PostCard';
 interface FeedProps {
   currentUser: { uid: string; displayName: string; avatarUrl?: string } | null;
   onLoginRequest: () => void;
+  onViewProfile: (uid: string) => void;
 }
 
-export const Feed: React.FC<FeedProps> = ({ currentUser, onLoginRequest }) => {
+export const Feed: React.FC<FeedProps> = ({ currentUser, onLoginRequest, onViewProfile }) => {
   const [matches, setMatches]           = useState<SBMatch[]>([]);
   const [loading, setLoading]           = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -66,6 +67,7 @@ export const Feed: React.FC<FeedProps> = ({ currentUser, onLoginRequest }) => {
               match={match}
               currentUser={currentUser}
               onAuthRequired={handleAuthRequired}
+              onViewProfile={onViewProfile}
             />
           ))}
         </div>
