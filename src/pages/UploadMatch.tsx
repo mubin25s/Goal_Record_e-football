@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { db } from '../firebaseClient';
-import { uploadToSupabase } from '../supabaseClient';
-import { addDoc, collection, getDocs, serverTimestamp } from 'firebase/firestore';
+import { uploadMatchScreenshot, insertMatch, fetchAllProfiles } from '../supabaseClient';
 import { Upload, X, Award, AlertTriangle } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -16,69 +14,40 @@ interface UploadMatchProps {
   onUploadSuccess: () => void;
 }
 
-// ⚡ Compress image before upload — shrinks file 5-10x so upload is way faster
-const compressImage = (file: File, maxPx = 900, quality = 0.72): Promise<Blob> =>
-  new Promise((resolve, reject) => {
-    const img = new Image();
-    const url = URL.createObjectURL(file);
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
-      const w = Math.round(img.width * scale);
-      const h = Math.round(img.height * scale);
-      const canvas = document.createElement('canvas');
-      canvas.width = w;
-      canvas.height = h;
-      canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
-      canvas.toBlob(
-        blob => blob ? resolve(blob) : reject(new Error('Compression failed')),
-        'image/jpeg',
-        quality,
-      );
-    };
-    img.onerror = reject;
-    img.src = url;
-  });
-
 export const UploadMatch: React.FC<UploadMatchProps> = ({
   currentUserId,
   currentUsername,
   onUploadSuccess,
 }) => {
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [users, setUsers]               = useState<UserProfile[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting, setSubmitting]     = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [errorMsg, setErrorMsg]         = useState('');
 
-  const [loserIsRegistered, setLoserIsRegistered] = useState(true);
-  const [selectedLoserId, setSelectedLoserId] = useState('');
-  const [selectedLoserUsername, setSelectedLoserUsername] = useState('');
-  const [loserNameInput, setLoserNameInput] = useState('');
-  const [winnerScore, setWinnerScore] = useState('');
-  const [loserScore, setLoserScore] = useState('');
-  const [trollComment, setTrollComment] = useState('');
+  const [loserIsRegistered, setLoserIsRegistered]           = useState(true);
+  const [selectedLoserId, setSelectedLoserId]               = useState('');
+  const [selectedLoserUsername, setSelectedLoserUsername]   = useState('');
+  const [loserNameInput, setLoserNameInput]                 = useState('');
+  const [winnerScore, setWinnerScore]                       = useState('');
+  const [loserScore, setLoserScore]                         = useState('');
+  const [trollComment, setTrollComment]                     = useState('');
 
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageFile, setImageFile]       = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isDragOver, setIsDragOver] = useState(false);
+  const [isDragOver, setIsDragOver]     = useState(false);
 
+  // Load registered players from Supabase
   useEffect(() => {
-    const fetchUsers = async () => {
-      setLoadingUsers(true);
-      try {
-        const snap = await getDocs(collection(db, 'users'));
-        const all: UserProfile[] = snap.docs
-          .map(d => ({ id: d.id, username: (d.data() as any).username }))
-          .filter(u => u.id !== currentUserId);
-        setUsers(all);
-      } catch (err) {
-        console.error('Error fetching users:', err);
-      } finally {
-        setLoadingUsers(false);
-      }
-    };
-    fetchUsers();
+    setLoadingUsers(true);
+    fetchAllProfiles()
+      .then(profiles => {
+        setUsers(profiles
+          .filter(p => p.id !== currentUserId)
+          .map(p => ({ id: p.id, username: p.username })));
+      })
+      .catch(console.error)
+      .finally(() => setLoadingUsers(false));
   }, [currentUserId]);
 
   const handleImageChange = (file: File) => {
@@ -116,7 +85,7 @@ export const UploadMatch: React.FC<UploadMatchProps> = ({
 
     if (!imageFile) { setErrorMsg('Upload a screenshot as evidence.'); return; }
 
-    const winVal = parseInt(winnerScore);
+    const winVal  = parseInt(winnerScore);
     const loseVal = parseInt(loserScore);
     if (isNaN(winVal) || isNaN(loseVal) || winVal < 0 || loseVal < 0) {
       setErrorMsg('Enter valid score numbers.');
@@ -139,36 +108,35 @@ export const UploadMatch: React.FC<UploadMatchProps> = ({
     setUploadProgress(0);
 
     try {
-      // ⚡ Step 1: Compress image (5-10x smaller = much faster upload)
-      const compressed = await compressImage(imageFile);
-      setUploadProgress(20);
+      // ⚡ Upload screenshot to Supabase Storage (compress → upload)
+      const screenshotUrl = await uploadMatchScreenshot(
+        imageFile,
+        currentUserId,
+        pct => setUploadProgress(pct),
+      );
+      setUploadProgress(95);
 
-      // ⚡ Step 2: Upload to Supabase Storage (free, no billing needed)
-      const path = `${currentUserId}/${Date.now()}.jpg`;
-      setUploadProgress(40);
-      const downloadURL = await uploadToSupabase('matches', path, compressed);
-      setUploadProgress(90);
-
-      // Step 3: Save match to Firestore
-      await addDoc(collection(db, 'matches'), {
-        winnerId:       currentUserId,
-        winnerUsername: currentUsername,
-        loserId:        loserIsRegistered ? selectedLoserId : null,
-        loserUsername:  loserIsRegistered ? selectedLoserUsername : loserNameInput.trim(),
-        winnerScore:    winVal,
-        loserScore:     loseVal,
-        screenshotUrl:  downloadURL,
-        trollComment:   trollComment.trim() || null,
-        createdAt:      serverTimestamp(),
+      // Save match record to Supabase Database
+      await insertMatch({
+        winner_id:      currentUserId,
+        winner_username: currentUsername,
+        loser_id:       loserIsRegistered ? selectedLoserId : null,
+        loser_username: loserIsRegistered ? selectedLoserUsername : loserNameInput.trim(),
+        winner_score:   winVal,
+        loser_score:    loseVal,
+        screenshot_url: screenshotUrl,
+        troll_comment:  trollComment.trim() || null,
       });
 
-      // Step 4: Celebrate!
+      setUploadProgress(100);
+
+      // 🎉 Celebrate!
       confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#A90E02', '#FFFBD4', '#FFFFFF'] });
       setTimeout(() => onUploadSuccess(), 1500);
 
     } catch (err: any) {
       console.error('Upload error:', err);
-      setErrorMsg(err.message || 'An error occurred. Check Firebase Storage rules.');
+      setErrorMsg(err.message || 'Upload failed. Please try again.');
       setSubmitting(false);
       setUploadProgress(0);
     }
@@ -235,7 +203,7 @@ export const UploadMatch: React.FC<UploadMatchProps> = ({
           )}
         </div>
 
-        {/* Scores — stack on mobile */}
+        {/* Scores */}
         <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
           <div className="form-group" style={{ flex: 1, minWidth: '140px' }}>
             <label className="form-label" htmlFor="winnerScore">Your Score</label>
@@ -312,7 +280,7 @@ export const UploadMatch: React.FC<UploadMatchProps> = ({
           />
         </div>
 
-        {/* Upload progress bar */}
+        {/* Progress bar */}
         {submitting && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-muted)' }}>
@@ -322,7 +290,7 @@ export const UploadMatch: React.FC<UploadMatchProps> = ({
             <div style={{ height: '6px', borderRadius: '99px', background: 'rgba(169,14,2,0.12)', overflow: 'hidden' }}>
               <div style={{
                 height: '100%', width: `${uploadProgress}%`,
-                background: 'var(--primary)', borderRadius: '99px', transition: 'width 0.2s ease',
+                background: 'var(--primary)', borderRadius: '99px', transition: 'width 0.3s ease',
               }} />
             </div>
           </div>

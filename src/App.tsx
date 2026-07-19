@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from './firebaseClient';
+import { auth } from './firebaseClient';
+import { upsertProfile, fetchProfile } from './supabaseClient';
 import { Navigation } from './components/Navigation';
 import { Login } from './pages/Login';
 import { Feed } from './pages/Feed';
@@ -17,37 +17,30 @@ function App() {
   // When true, show the login page (guest clicked "Log in")
   const [showLogin, setShowLogin] = useState(false);
 
-  const fetchProfile = async (userId: string): Promise<any> => {
-    try {
-      const docSnap = await getDoc(doc(db, 'users', userId));
-      if (docSnap.exists()) return docSnap.data();
-      // New account — doc may not be written yet; wait briefly once
-      await new Promise(resolve => setTimeout(resolve, 300));
-      const retry = await getDoc(doc(db, 'users', userId));
-      return retry.exists() ? retry.data() : null;
-    } catch (err) {
-      console.error('Error fetching profile:', err);
-      return null;
-    }
-  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        // ⚡ Show UI immediately using Google auth data — no waiting
+        // ⚡ Show UI immediately using Google auth data
         setProfile({
           username: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Player',
           avatarUrl: firebaseUser.photoURL || undefined,
         });
         setShowLogin(false);
         setLoading(false);
-        // Then fetch Firestore profile in background to apply custom username
-        fetchProfile(firebaseUser.uid).then(prof => {
-          if (prof?.username) {
-            setProfile({ username: prof.username, avatarUrl: prof.avatarUrl || firebaseUser.photoURL || undefined });
-          }
+
+        // Upsert profile to Supabase, then fetch custom username
+        await upsertProfile({
+          id:         firebaseUser.uid,
+          username:   firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Player',
+          avatar_url: firebaseUser.photoURL || null,
+          email:      firebaseUser.email || null,
         });
+        const sbProfile = await fetchProfile(firebaseUser.uid);
+        if (sbProfile?.username) {
+          setProfile({ username: sbProfile.username, avatarUrl: sbProfile.avatar_url || firebaseUser.photoURL || undefined });
+        }
       } else {
         setProfile(null);
         setLoading(false);

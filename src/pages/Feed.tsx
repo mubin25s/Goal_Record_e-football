@@ -1,9 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { db } from '../firebaseClient';
-import {
-  collection, query, orderBy, onSnapshot,
-  addDoc, deleteDoc, doc, serverTimestamp,
-} from 'firebase/firestore';
+import { supabase, fetchPosts, insertPost, deletePost, type SBPost } from '../supabaseClient';
 import { Image, X, ChevronDown, Flame, Send } from 'lucide-react';
 import { PostCard, type Post } from '../components/PostCard';
 
@@ -15,16 +11,29 @@ interface FeedProps {
 
 const CATEGORIES = ['Announcement', 'Question', 'Discussion', 'Achievement', 'Other'] as const;
 
+// Convert Supabase row → PostCard Post shape
+const toPost = (r: SBPost): Post => ({
+  id:            r.id,
+  authorId:      r.author_id,
+  authorName:    r.author_name,
+  authorAvatar:  r.author_avatar,
+  content:       r.content,
+  imageUrl:      r.image_url,
+  category:      r.category,
+  createdAt:     { toDate: () => new Date(r.created_at) } as any,
+  reactionCounts: { like: 0, love: 0, haha: 0, sad: 0, wow: 0 },
+});
+
 // ─── CreatePost ───────────────────────────────────────────────────────────────
 const CreatePost: React.FC<{
   currentUser: { uid: string; displayName: string; avatarUrl?: string };
-  onPosted: () => void;
+  onPosted: (post: Post) => void;
 }> = ({ currentUser, onPosted }) => {
-  const [content, setContent] = useState('');
-  const [imageUrl, setImageUrl] = useState('');
-  const [category, setCategory] = useState<string>('Discussion');
-  const [showExtras, setShowExtras] = useState(false);
-  const [posting, setPosting] = useState(false);
+  const [content, setContent]         = useState('');
+  const [imageUrl, setImageUrl]       = useState('');
+  const [category, setCategory]       = useState<string>('Discussion');
+  const [showExtras, setShowExtras]   = useState(false);
+  const [posting, setPosting]         = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const autoResize = () => {
@@ -39,23 +48,32 @@ const CreatePost: React.FC<{
     if (!trimmedContent || posting) return;
     setPosting(true);
 
-    // ⚡ Optimistic: clear form INSTANTLY so the UI feels fast
+    // ⚡ Optimistic: clear form INSTANTLY
+    const optimistic: Post = {
+      id:            'temp-' + Date.now(),
+      authorId:      currentUser.uid,
+      authorName:    currentUser.displayName,
+      authorAvatar:  currentUser.avatarUrl ?? null,
+      content:       trimmedContent,
+      imageUrl:      imageUrl.trim() || null,
+      category,
+      createdAt:     { toDate: () => new Date() } as any,
+      reactionCounts: { like: 0, love: 0, haha: 0, sad: 0, wow: 0 },
+    };
     setContent('');
     setImageUrl('');
     setCategory('Discussion');
     setShowExtras(false);
-    onPosted();
+    onPosted(optimistic);
 
     try {
-      await addDoc(collection(db, 'posts'), {
-        authorId:       currentUser.uid,
-        authorName:     currentUser.displayName,
-        authorAvatar:   currentUser.avatarUrl ?? null,
-        content:        trimmedContent,
-        imageUrl:       imageUrl.trim() || null,
+      await insertPost({
+        author_id:    currentUser.uid,
+        author_name:  currentUser.displayName,
+        author_avatar: currentUser.avatarUrl ?? null,
+        content:      trimmedContent,
+        image_url:    imageUrl.trim() || null,
         category,
-        createdAt:      serverTimestamp(),
-        reactionCounts: { like: 0, love: 0, haha: 0, sad: 0, wow: 0 },
       });
     } catch (err: any) {
       alert('Could not post: ' + err.message);
@@ -67,7 +85,6 @@ const CreatePost: React.FC<{
   return (
     <div className="create-post-card">
       <div className="create-post-top">
-        {/* Avatar */}
         <div style={{
           width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
           backgroundColor: 'var(--primary)', color: 'var(--text-dark)',
@@ -81,7 +98,6 @@ const CreatePost: React.FC<{
           }
         </div>
 
-        {/* Textarea */}
         <textarea
           ref={textareaRef}
           className="create-post-textarea"
@@ -95,7 +111,6 @@ const CreatePost: React.FC<{
 
       {showExtras && (
         <div className="create-post-extras">
-          {/* Category */}
           <div className="select-wrap">
             <select
               className="form-input category-select"
@@ -109,7 +124,6 @@ const CreatePost: React.FC<{
             <ChevronDown size={16} className="select-icon" />
           </div>
 
-          {/* Image URL */}
           <div className="image-url-wrap">
             <Image size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
             <input
@@ -127,7 +141,6 @@ const CreatePost: React.FC<{
             )}
           </div>
 
-          {/* Action row */}
           <div className="create-post-actions">
             <button
               className="btn"
@@ -186,30 +199,50 @@ const AuthPromptModal: React.FC<{ onClose: () => void; onLogin: () => void }> = 
 
 // ─── Feed ─────────────────────────────────────────────────────────────────────
 export const Feed: React.FC<FeedProps> = ({ currentUser, onLoginRequest }) => {
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [posts, setPosts]               = useState<Post[]>([]);
+  const [loading, setLoading]           = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
 
-  // Live posts subscription — sorted newest-first
+  // Initial load
   useEffect(() => {
-    const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'));
-    const unsub = onSnapshot(q, snap => {
-      setPosts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Post)));
-      setLoading(false);
-    }, err => {
-      console.error('Feed error:', err);
-      setLoading(false);
-    });
-    return () => unsub();
+    fetchPosts()
+      .then(rows => setPosts(rows.map(toPost)))
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, []);
+
+  // ⚡ Supabase real-time subscription for new posts
+  useEffect(() => {
+    const channel = supabase
+      .channel('public:posts')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' }, payload => {
+        const newPost = toPost(payload.new as SBPost);
+        setPosts(prev => {
+          // skip if it was our own optimistic post
+          if (prev.some(p => p.id === newPost.id)) return prev;
+          return [newPost, ...prev];
+        });
+      })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'posts' }, payload => {
+        setPosts(prev => prev.filter(p => p.id !== (payload.old as any).id));
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const handleDelete = async (postId: string) => {
     if (!confirm('Delete this post? This cannot be undone.')) return;
+    // Optimistic
+    setPosts(prev => prev.filter(p => p.id !== postId));
     try {
-      await deleteDoc(doc(db, 'posts', postId));
+      await deletePost(postId);
     } catch (err: any) {
       alert('Could not delete: ' + err.message);
     }
+  };
+
+  const handleNewPost = (post: Post) => {
+    setPosts(prev => [post, ...prev.filter(p => !p.id.startsWith('temp-'))]);
   };
 
   const handleAuthRequired = () => setShowAuthModal(true);
@@ -217,22 +250,17 @@ export const Feed: React.FC<FeedProps> = ({ currentUser, onLoginRequest }) => {
 
   return (
     <div className="feed-container">
-
-      {/* Page heading */}
       <div className="feed-heading">
         <h2 className="feed-title">🔥 Goals Feed</h2>
         <p className="feed-subtitle">Stay up to date with match achievements, banter, and highlights.</p>
       </div>
 
-      {/* Auth banner for guests */}
       {!currentUser && <AuthBanner onLogin={handleLogin} />}
 
-      {/* Create post (logged in only) */}
       {currentUser && (
-        <CreatePost currentUser={currentUser} onPosted={() => {}} />
+        <CreatePost currentUser={currentUser} onPosted={handleNewPost} />
       )}
 
-      {/* Post list */}
       {loading ? (
         <div className="flex-center" style={{ minHeight: '40vh', flexDirection: 'column', gap: '20px' }}>
           <div className="football-loader" style={{ fontSize: '38px' }}>⚽</div>
@@ -260,7 +288,6 @@ export const Feed: React.FC<FeedProps> = ({ currentUser, onLoginRequest }) => {
         </div>
       )}
 
-      {/* Auth modal */}
       {showAuthModal && (
         <AuthPromptModal onClose={() => setShowAuthModal(false)} onLogin={handleLogin} />
       )}

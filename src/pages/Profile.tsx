@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { db } from '../firebaseClient';
 import {
-  doc, getDoc, updateDoc,
-  collection, query, where, getDocs, orderBy
-} from 'firebase/firestore';
+  fetchProfile, fetchUserMatches, updateProfileUsername,
+  type SBMatch,
+} from '../supabaseClient';
 import { Settings, Check, Calendar, Activity } from 'lucide-react';
 
 interface ProfileProps {
@@ -20,19 +19,30 @@ interface Match {
   loserUsername: string;
   winnerScore: number;
   loserScore: number;
-  createdAt: any;
+  createdAt: string;
 }
 
-export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onProfileUpdate }) => {
-  const [username, setUsername] = useState('');
-  const [avatarUrl, setAvatarUrl] = useState('');
-  const [updating, setUpdating] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [updateMsg, setUpdateMsg] = useState('');
-  const [matches, setMatches] = useState<Match[]>([]);
+const toMatch = (r: SBMatch): Match => ({
+  id:            r.id,
+  winnerId:      r.winner_id,
+  winnerUsername: r.winner_username,
+  loserId:       r.loser_id,
+  loserUsername: r.loser_username,
+  winnerScore:   r.winner_score,
+  loserScore:    r.loser_score,
+  createdAt:     r.created_at,
+});
 
-  const [wins, setWins] = useState(0);
-  const [losses, setLosses] = useState(0);
+export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onProfileUpdate }) => {
+  const [username, setUsername]   = useState('');
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [updating, setUpdating]   = useState(false);
+  const [loading, setLoading]     = useState(true);
+  const [updateMsg, setUpdateMsg] = useState('');
+  const [matches, setMatches]     = useState<Match[]>([]);
+
+  const [wins, setWins]               = useState(0);
+  const [losses, setLosses]           = useState(0);
   const [goalsScored, setGoalsScored] = useState(0);
   const [goalsConceded, setGoalsConceded] = useState(0);
 
@@ -42,41 +52,35 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
     const fetchData = async () => {
       setLoading(true);
       try {
-        // 1. Fetch profile
-        const profileSnap = await getDoc(doc(db, 'users', currentUserId));
-        if (profileSnap.exists()) {
-          const data = profileSnap.data() as any;
-          setUsername(data.username || '');
-          setAvatarUrl(data.avatarUrl || '');
+        const [profile, matchRows] = await Promise.all([
+          fetchProfile(currentUserId),
+          fetchUserMatches(currentUserId),
+        ]);
+
+        if (profile) {
+          setUsername(profile.username || '');
+          setAvatarUrl(profile.avatar_url || '');
         }
 
-        // 2. Fetch matches as winner
-        const winnerQuery = query(collection(db, 'matches'), where('winnerId', '==', currentUserId), orderBy('createdAt', 'desc'));
-        const winnerSnap = await getDocs(winnerQuery);
-        const wonMatches: Match[] = winnerSnap.docs.map(d => ({ id: d.id, ...d.data() } as Match));
-
-        // 3. Fetch matches as loser
-        const loserQuery = query(collection(db, 'matches'), where('loserId', '==', currentUserId), orderBy('createdAt', 'desc'));
-        const loserSnap = await getDocs(loserQuery);
-        const lostMatches: Match[] = loserSnap.docs.map(d => ({ id: d.id, ...d.data() } as Match));
-
-        // 4. Merge and sort
-        const allMatches = [...wonMatches, ...lostMatches].sort((a, b) => {
-          const aTime = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
-          const bTime = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
-          return bTime - aTime;
-        });
+        const allMatches = matchRows.map(toMatch);
         setMatches(allMatches);
 
-        // 5. Calculate stats
         let w = 0, l = 0, gs = 0, gc = 0;
-        wonMatches.forEach(m => { w++; gs += m.winnerScore; gc += m.loserScore; });
-        lostMatches.forEach(m => { l++; gs += m.loserScore; gc += m.winnerScore; });
+        allMatches.forEach(m => {
+          if (m.winnerId === currentUserId) {
+            w++;
+            gs += m.winnerScore;
+            gc += m.loserScore;
+          } else {
+            l++;
+            gs += m.loserScore;
+            gc += m.winnerScore;
+          }
+        });
         setWins(w);
         setLosses(l);
         setGoalsScored(gs);
         setGoalsConceded(gc);
-
       } catch (err) {
         console.error('Profile error:', err);
       } finally {
@@ -92,9 +96,7 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
     setUpdating(true);
     setUpdateMsg('');
     try {
-      await updateDoc(doc(db, 'users', currentUserId), {
-        username: username.trim(),
-      });
+      await updateProfileUsername(currentUserId, username.trim());
       setUpdateMsg('Profile updated successfully!');
       onProfileUpdate(username.trim(), avatarUrl.trim() || undefined);
     } catch (err: any) {
@@ -129,7 +131,7 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
   return (
     <div style={{ maxWidth: '750px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
       <div>
-        <h2 style={{ fontSize: '32px', marginBottom: '8px' }}>Trophy Room & Profile</h2>
+        <h2 style={{ fontSize: '32px', marginBottom: '8px' }}>Trophy Room &amp; Profile</h2>
         <p>Personal analytics, achievements, and account settings.</p>
       </div>
 
@@ -206,8 +208,8 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
                 const opponent = isWin ? m.loserUsername : m.winnerUsername;
                 const myScore = isWin ? m.winnerScore : m.loserScore;
                 const opponentScore = isWin ? m.loserScore : m.winnerScore;
-                const dateStr = m.createdAt?.toDate
-                  ? m.createdAt.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+                const dateStr = m.createdAt
+                  ? new Date(m.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
                   : '';
                 return (
                   <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.02)', border: '1px solid var(--border-color)', padding: '12px 16px', borderRadius: '8px' }}>

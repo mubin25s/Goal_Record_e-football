@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { db } from '../firebaseClient';
-import { collection, getDocs } from 'firebase/firestore';
+import { fetchAllMatches, fetchAllProfiles } from '../supabaseClient';
 import { Crown, ShieldAlert, Award, Frown } from 'lucide-react';
 
 interface PlayerStats {
@@ -15,37 +14,36 @@ interface PlayerStats {
 }
 
 export const Leaderboard: React.FC = () => {
-  const [stats, setStats] = useState<PlayerStats[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats]       = useState<PlayerStats[]>([]);
+  const [loading, setLoading]   = useState(true);
   const [activeTab, setActiveTab] = useState<'fame' | 'shame'>('fame');
 
   useEffect(() => {
     const calcStats = async () => {
       setLoading(true);
       try {
-        const [usersSnap, matchesSnap] = await Promise.all([
-          getDocs(collection(db, 'users')),
-          getDocs(collection(db, 'matches')),
+        const [profiles, matches] = await Promise.all([
+          fetchAllProfiles(),
+          fetchAllMatches(),
         ]);
 
         const statsMap: { [id: string]: PlayerStats } = {};
-        usersSnap.docs.forEach(d => {
-          statsMap[d.id] = { id: d.id, username: (d.data() as any).username, wins: 0, losses: 0, totalPlayed: 0, winRate: 0, goalsScored: 0, goalsConceded: 0 };
+        profiles.forEach(p => {
+          statsMap[p.id] = { id: p.id, username: p.username, wins: 0, losses: 0, totalPlayed: 0, winRate: 0, goalsScored: 0, goalsConceded: 0 };
         });
 
-        matchesSnap.docs.forEach(d => {
-          const m = d.data() as any;
-          if (statsMap[m.winnerId]) {
-            statsMap[m.winnerId].wins++;
-            statsMap[m.winnerId].totalPlayed++;
-            statsMap[m.winnerId].goalsScored += m.winnerScore;
-            statsMap[m.winnerId].goalsConceded += m.loserScore;
+        matches.forEach(m => {
+          if (statsMap[m.winner_id]) {
+            statsMap[m.winner_id].wins++;
+            statsMap[m.winner_id].totalPlayed++;
+            statsMap[m.winner_id].goalsScored  += m.winner_score;
+            statsMap[m.winner_id].goalsConceded += m.loser_score;
           }
-          if (m.loserId && statsMap[m.loserId]) {
-            statsMap[m.loserId].losses++;
-            statsMap[m.loserId].totalPlayed++;
-            statsMap[m.loserId].goalsScored += m.loserScore;
-            statsMap[m.loserId].goalsConceded += m.winnerScore;
+          if (m.loser_id && statsMap[m.loser_id]) {
+            statsMap[m.loser_id].losses++;
+            statsMap[m.loser_id].totalPlayed++;
+            statsMap[m.loser_id].goalsScored   += m.loser_score;
+            statsMap[m.loser_id].goalsConceded += m.winner_score;
           }
         });
 

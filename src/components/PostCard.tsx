@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { db } from '../firebaseClient';
 import {
-  collection, query, orderBy, onSnapshot,
-  addDoc, deleteDoc, doc, serverTimestamp,
-  setDoc, getDoc, increment, updateDoc,
-} from 'firebase/firestore';
+  fetchComments, insertComment, fetchReaction, fetchReactionCounts,
+  upsertReaction, deleteReaction, type SBComment,
+} from '../supabaseClient';
 import {
   MessageSquare, ChevronDown, ChevronUp, Send,
   Trash2, ThumbsUp, Heart, Laugh, Frown, Zap,
@@ -27,6 +25,7 @@ interface Comment {
   id: string;
   authorId: string;
   authorName: string;
+  authorAvatar: string | null;
   content: string;
   createdAt: any;
 }
@@ -83,26 +82,37 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onDelete,
   const [counts, setCounts] = useState(post.reactionCounts ?? { like: 0, love: 0, haha: 0, sad: 0, wow: 0 });
   const [reactionBarOpen, setReactionBarOpen] = useState(false);
 
-  // Load my existing reaction
+  // Load reaction counts + my reaction
   useEffect(() => {
-    if (!currentUser) return;
-    const reactionRef = doc(db, 'posts', post.id, 'reactions', currentUser.uid);
-    getDoc(reactionRef).then(snap => {
-      if (snap.exists()) setMyReaction(snap.data().type as ReactionType);
+    fetchReactionCounts(post.id).then(res => {
+      setCounts({
+        like: res.like || 0,
+        love: res.love || 0,
+        haha: res.haha || 0,
+        sad: res.sad || 0,
+        wow: res.wow || 0,
+      });
     });
+    if (currentUser) {
+      fetchReaction(post.id, currentUser.uid).then(type => {
+        if (type) setMyReaction(type as ReactionType);
+      });
+    }
   }, [post.id, currentUser]);
 
-  // Live comments subscription when expanded
+  // Load comments when expanded
   useEffect(() => {
     if (!commentsOpen) return;
-    const q = query(
-      collection(db, 'posts', post.id, 'comments'),
-      orderBy('createdAt', 'asc')
-    );
-    const unsub = onSnapshot(q, snap => {
-      setComments(snap.docs.map(d => ({ id: d.id, ...d.data() } as Comment)));
+    fetchComments(post.id).then(rows => {
+      setComments(rows.map((r: SBComment) => ({
+        id:          r.id,
+        authorId:    r.author_id,
+        authorName:  r.author_name,
+        authorAvatar: r.author_avatar,
+        content:     r.content,
+        createdAt:   { toDate: () => new Date(r.created_at) },
+      })));
     });
-    return () => unsub();
   }, [commentsOpen, post.id]);
 
   // ── React ──────────────────────────────────────────────────────────────────
@@ -110,24 +120,15 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onDelete,
     if (!currentUser) { onAuthRequired(); return; }
     setReactionBarOpen(false);
 
-    const reactionRef = doc(db, 'posts', post.id, 'reactions', currentUser.uid);
-    const postRef     = doc(db, 'posts', post.id);
-
     if (myReaction === type) {
-      // Toggle off
-      await deleteDoc(reactionRef);
-      await updateDoc(postRef, { [`reactionCounts.${type}`]: increment(-1) });
+      await deleteReaction(post.id, currentUser.uid);
       setCounts(prev => ({ ...prev, [type]: Math.max(0, (prev[type] ?? 0) - 1) }));
       setMyReaction(null);
     } else {
-      // Remove old reaction if any
       if (myReaction) {
-        await updateDoc(postRef, { [`reactionCounts.${myReaction}`]: increment(-1) });
         setCounts(prev => ({ ...prev, [myReaction!]: Math.max(0, (prev[myReaction!] ?? 0) - 1) }));
       }
-      // Add new
-      await setDoc(reactionRef, { type });
-      await updateDoc(postRef, { [`reactionCounts.${type}`]: increment(1) });
+      await upsertReaction(post.id, currentUser.uid, type);
       setCounts(prev => ({ ...prev, [type]: (prev[type] ?? 0) + 1 }));
       setMyReaction(type);
     }
@@ -139,14 +140,35 @@ export const PostCard: React.FC<PostCardProps> = ({ post, currentUser, onDelete,
     const text = commentText.trim();
     if (!text || posting) return;
     setPosting(true);
+    // Optimistic
+    const optimistic: Comment = {
+      id: 'temp-' + Date.now(),
+      authorId: currentUser.uid,
+      authorName: currentUser.displayName,
+      authorAvatar: null,
+      content: text,
+      createdAt: { toDate: () => new Date() },
+    };
+    setComments(prev => [...prev, optimistic]);
+    setCommentText('');
     try {
-      await addDoc(collection(db, 'posts', post.id, 'comments'), {
-        authorId:   currentUser.uid,
-        authorName: currentUser.displayName,
-        content:    text,
-        createdAt:  serverTimestamp(),
+      await insertComment({
+        post_id:      post.id,
+        author_id:    currentUser.uid,
+        author_name:  currentUser.displayName,
+        author_avatar: null,
+        content:      text,
       });
-      setCommentText('');
+      // Refresh to get server ID
+      const fresh = await fetchComments(post.id);
+      setComments(fresh.map((r: SBComment) => ({
+        id:          r.id,
+        authorId:    r.author_id,
+        authorName:  r.author_name,
+        authorAvatar: r.author_avatar,
+        content:     r.content,
+        createdAt:   { toDate: () => new Date(r.created_at) },
+      })));
     } finally {
       setPosting(false);
     }
