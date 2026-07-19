@@ -21,16 +21,13 @@ export const Feed: React.FC<FeedProps> = ({ currentUser, onLoginRequest, onViewP
       .finally(() => setLoading(false));
   }, []);
 
-  // ⚡ Supabase real-time updates for new matches submitted
+  // ⚡ Supabase real-time: re-fetch full list (with joins) on new match
   useEffect(() => {
     const channel = supabase
       .channel('public:matches')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'matches' }, payload => {
-        const newMatch = payload.new as SBMatch;
-        setMatches(prev => {
-          if (prev.some(m => m.id === newMatch.id)) return prev;
-          return [newMatch, ...prev];
-        });
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'matches' }, () => {
+        // Re-fetch with joins so avatar_url etc. are included
+        fetchAllMatches().then(setMatches).catch(console.error);
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
