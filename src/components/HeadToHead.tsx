@@ -22,14 +22,6 @@ export const HeadToHead: React.FC = () => {
         ]);
         setProfiles(pRows);
         setMatches(mRows);
-
-        // Pre-select the first two players if available
-        if (pRows.length >= 2) {
-          setPlayerAId(pRows[0].id);
-          setPlayerBId(pRows[1].id);
-        } else if (pRows.length === 1) {
-          setPlayerAId(pRows[0].id);
-        }
       } catch (err) {
         console.error('HeadToHead data load error:', err);
       } finally {
@@ -168,7 +160,22 @@ export const HeadToHead: React.FC = () => {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', minWidth: 0 }}>
                 <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '20px', border: '2px solid rgba(169, 14, 2, 0.3)', overflow: 'hidden', marginBottom: '8px', boxShadow: '0 0 15px rgba(169,14,2,0.15)' }}>
                   {playerA.avatar_url ? (
-                    <img src={playerA.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <>
+                      <img 
+                        src={playerA.avatar_url} 
+                        alt="" 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          if (e.currentTarget.nextElementSibling) {
+                            (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
+                          }
+                        }}
+                      />
+                      <div style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                        {playerA.username.substring(0, 2).toUpperCase()}
+                      </div>
+                    </>
                   ) : (
                     playerA.username.substring(0, 2).toUpperCase()
                   )}
@@ -203,7 +210,22 @@ export const HeadToHead: React.FC = () => {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', minWidth: 0 }}>
                 <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '20px', border: '2px solid rgba(169, 14, 2, 0.3)', overflow: 'hidden', marginBottom: '8px', boxShadow: '0 0 15px rgba(169,14,2,0.15)' }}>
                   {playerB.avatar_url ? (
-                    <img src={playerB.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <>
+                      <img 
+                        src={playerB.avatar_url} 
+                        alt="" 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          if (e.currentTarget.nextElementSibling) {
+                            (e.currentTarget.nextElementSibling as HTMLElement).style.display = 'flex';
+                          }
+                        }}
+                      />
+                      <div style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' }}>
+                        {playerB.username.substring(0, 2).toUpperCase()}
+                      </div>
+                    </>
                   ) : (
                     playerB.username.substring(0, 2).toUpperCase()
                   )}
@@ -228,7 +250,7 @@ export const HeadToHead: React.FC = () => {
               {/* Detailed Performance Comparison */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', padding: '28px 24px' }} className="card">
                 <h3 style={{ fontSize: '18px', fontFamily: 'var(--font-display)', marginBottom: '4px', borderBottom: '1px solid var(--border-color)', paddingBottom: '14px', color: 'var(--text-white)' }}>
-                  📊 Matchup Analytics
+                  Matchup Analytics
                 </h3>
                 
                 {[
