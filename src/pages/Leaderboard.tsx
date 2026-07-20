@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
 import { fetchAllMatches, fetchAllProfiles } from '../supabaseClient';
-import { Crown, ShieldAlert, Award, Frown } from 'lucide-react';
+import { Crown, ShieldAlert, Award, Frown, Users } from 'lucide-react';
+import { HeadToHead } from '../components/HeadToHead';
 
 interface PlayerStats {
   id: string;
   username: string;
   wins: number;
+  draws: number;
   losses: number;
   totalPlayed: number;
   winRate: number;
@@ -16,7 +18,7 @@ interface PlayerStats {
 export const Leaderboard: React.FC = () => {
   const [stats, setStats]       = useState<PlayerStats[]>([]);
   const [loading, setLoading]   = useState(true);
-  const [activeTab, setActiveTab] = useState<'fame' | 'shame'>('fame');
+  const [activeTab, setActiveTab] = useState<'fame' | 'shame' | 'h2h'>('fame');
 
   useEffect(() => {
     const calcStats = async () => {
@@ -29,21 +31,31 @@ export const Leaderboard: React.FC = () => {
 
         const statsMap: { [id: string]: PlayerStats } = {};
         profiles.forEach(p => {
-          statsMap[p.id] = { id: p.id, username: p.username, wins: 0, losses: 0, totalPlayed: 0, winRate: 0, goalsScored: 0, goalsConceded: 0 };
+          statsMap[p.id] = { id: p.id, username: p.username, wins: 0, draws: 0, losses: 0, totalPlayed: 0, winRate: 0, goalsScored: 0, goalsConceded: 0 };
         });
 
         matches.forEach(m => {
+          const isDraw = m.winner_score === m.loser_score;
+
           if (statsMap[m.winner_id]) {
-            statsMap[m.winner_id].wins++;
             statsMap[m.winner_id].totalPlayed++;
             statsMap[m.winner_id].goalsScored  += m.winner_score;
             statsMap[m.winner_id].goalsConceded += m.loser_score;
+            if (isDraw) {
+              statsMap[m.winner_id].draws++;
+            } else {
+              statsMap[m.winner_id].wins++;
+            }
           }
           if (m.loser_id && statsMap[m.loser_id]) {
-            statsMap[m.loser_id].losses++;
             statsMap[m.loser_id].totalPlayed++;
             statsMap[m.loser_id].goalsScored   += m.loser_score;
             statsMap[m.loser_id].goalsConceded += m.winner_score;
+            if (isDraw) {
+              statsMap[m.loser_id].draws++;
+            } else {
+              statsMap[m.loser_id].losses++;
+            }
           }
         });
 
@@ -83,7 +95,7 @@ export const Leaderboard: React.FC = () => {
       </div>
 
       {/* Tab Switcher */}
-      <div style={{ display: 'flex', background: 'rgba(255, 251, 212, 0.03)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '6px', marginBottom: '32px' }}>
+      <div style={{ display: 'flex', background: 'rgba(255, 251, 212, 0.03)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '6px', marginBottom: '32px', gap: '4px' }}>
         <button
           onClick={() => setActiveTab('fame')}
           style={{ flex: 1, padding: '14px', border: 'none', borderRadius: '8px', backgroundColor: activeTab === 'fame' ? 'var(--primary)' : 'transparent', color: activeTab === 'fame' ? 'var(--accent)' : 'var(--text-muted)', fontWeight: 'bold', fontFamily: 'var(--font-display)', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'var(--transition)' }}
@@ -98,9 +110,18 @@ export const Leaderboard: React.FC = () => {
           <ShieldAlert size={18} style={{ color: activeTab === 'shame' ? '#EF4444' : 'inherit' }} />
           <span>Wall of Shame</span>
         </button>
+        <button
+          onClick={() => setActiveTab('h2h')}
+          style={{ flex: 1, padding: '14px', border: 'none', borderRadius: '8px', backgroundColor: activeTab === 'h2h' ? 'var(--primary)' : 'transparent', color: activeTab === 'h2h' ? 'var(--accent)' : 'var(--text-muted)', fontWeight: 'bold', fontFamily: 'var(--font-display)', fontSize: '15px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'var(--transition)' }}
+        >
+          <Users size={18} style={{ color: activeTab === 'h2h' ? 'var(--accent)' : 'inherit' }} />
+          <span>Head to Head</span>
+        </button>
       </div>
 
-      {activePlayers.length === 0 ? (
+      {activeTab === 'h2h' ? (
+        <HeadToHead />
+      ) : activePlayers.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
           <p>No match data yet. Submit matches to generate standings!</p>
         </div>
@@ -118,7 +139,7 @@ export const Leaderboard: React.FC = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: 'rgba(255, 251, 212, 0.02)', borderBottom: '1px solid var(--border-color)' }}>
-                  {['Rank', 'Player', 'P', 'W', 'L', 'WR%', 'GD'].map(h => (
+                  {['Rank', 'Player', 'P', 'W', 'D', 'L', 'WR%', 'GD'].map(h => (
                     <th key={h} style={{ padding: '16px 20px', color: 'var(--accent)', fontSize: '13px', textTransform: 'uppercase', textAlign: h === 'Rank' || h === 'Player' ? 'left' : 'center' }}>{h}</th>
                   ))}
                 </tr>
@@ -148,6 +169,7 @@ export const Leaderboard: React.FC = () => {
                       </td>
                       <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 500 }}>{player.totalPlayed}</td>
                       <td style={{ padding: '16px 20px', textAlign: 'center', color: 'var(--success)', fontWeight: 600 }}>{player.wins}</td>
+                      <td style={{ padding: '16px 20px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600 }}>{player.draws}</td>
                       <td style={{ padding: '16px 20px', textAlign: 'center', color: 'var(--danger)', fontWeight: 600 }}>{player.losses}</td>
                       <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 'bold' }}>{player.winRate}%</td>
                       <td style={{ padding: '16px 20px', textAlign: 'center', fontWeight: 600, color: gd > 0 ? 'var(--success)' : gd < 0 ? 'var(--danger)' : 'var(--text-muted)' }}>{gdLabel}</td>

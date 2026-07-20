@@ -57,7 +57,7 @@ CREATE TABLE IF NOT EXISTS public.matches (
     screenshot_url  TEXT        NOT NULL,
     troll_comment   TEXT,
     created_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    CONSTRAINT winner_must_win CHECK (winner_score > loser_score)
+    CONSTRAINT winner_must_win CHECK (winner_score >= loser_score)
 );
 
 -- 6. DISABLE ROW LEVEL SECURITY

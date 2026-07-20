@@ -42,6 +42,7 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
   const [matches, setMatches]     = useState<Match[]>([]);
 
   const [wins, setWins]               = useState(0);
+  const [draws, setDraws]             = useState(0);
   const [losses, setLosses]           = useState(0);
   const [goalsScored, setGoalsScored] = useState(0);
   const [goalsConceded, setGoalsConceded] = useState(0);
@@ -65,9 +66,19 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
         const allMatches = matchRows.map(toMatch);
         setMatches(allMatches);
 
-        let w = 0, l = 0, gs = 0, gc = 0;
+        let w = 0, d = 0, l = 0, gs = 0, gc = 0;
         allMatches.forEach(m => {
-          if (m.winnerId === currentUserId) {
+          const isDraw = m.winnerScore === m.loserScore;
+          if (isDraw) {
+            d++;
+            if (m.winnerId === currentUserId) {
+              gs += m.winnerScore;
+              gc += m.loserScore;
+            } else {
+              gs += m.loserScore;
+              gc += m.winnerScore;
+            }
+          } else if (m.winnerId === currentUserId) {
             w++;
             gs += m.winnerScore;
             gc += m.loserScore;
@@ -78,6 +89,7 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
           }
         });
         setWins(w);
+        setDraws(d);
         setLosses(l);
         setGoalsScored(gs);
         setGoalsConceded(gc);
@@ -106,7 +118,7 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
     }
   };
 
-  const totalPlayed = wins + losses;
+  const totalPlayed = wins + losses + draws;
   const winRate = totalPlayed > 0 ? ((wins / totalPlayed) * 100).toFixed(1) : '0';
   const gdDisplay = goalDifference > 0 ? `+${goalDifference}` : `${goalDifference}`;
 
@@ -153,10 +165,11 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
       </div>
 
       {/* Stats Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '16px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '16px' }}>
         {[
           { label: 'Matches', value: totalPlayed, color: 'white' },
           { label: 'Wins', value: wins, color: 'var(--success)' },
+          { label: 'Draws', value: draws, color: 'var(--text-muted)' },
           { label: 'Losses', value: losses, color: 'var(--danger)' },
           { label: 'Win Rate', value: `${winRate}%`, color: 'var(--accent)' },
           { label: 'Goal Diff', value: gdDisplay, color: goalDifference > 0 ? 'var(--success)' : goalDifference < 0 ? 'var(--danger)' : 'var(--text-muted)' },
@@ -204,19 +217,26 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {matches.map(m => {
-                const isWin = m.winnerId === currentUserId;
-                const opponent = isWin ? m.loserUsername : m.winnerUsername;
-                const myScore = isWin ? m.winnerScore : m.loserScore;
-                const opponentScore = isWin ? m.loserScore : m.winnerScore;
+                const isDraw = m.winnerScore === m.loserScore;
+                const isWin = !isDraw && m.winnerId === currentUserId;
+                const opponent = isWin || (isDraw && m.winnerId === currentUserId) ? m.loserUsername : m.winnerUsername;
+                const myScore = isWin || (isDraw && m.winnerId === currentUserId) ? m.winnerScore : m.loserScore;
+                const opponentScore = isWin || (isDraw && m.winnerId === currentUserId) ? m.loserScore : m.winnerScore;
                 const dateStr = m.createdAt
                   ? new Date(m.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
                   : '';
+                
+                const badgeText = isDraw ? 'DRAW' : isWin ? 'WIN' : 'LOSS';
+                const badgeBg = isDraw ? 'rgba(255, 251, 212, 0.05)' : isWin ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)';
+                const badgeBorder = isDraw ? '1px solid var(--border-color)' : 'none';
+                const badgeColor = isDraw ? 'var(--text-muted)' : isWin ? 'var(--success)' : 'var(--danger)';
+
                 return (
                   <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.02)', border: '1px solid var(--border-color)', padding: '12px 16px', borderRadius: '8px' }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px', backgroundColor: isWin ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)', color: isWin ? 'var(--success)' : 'var(--danger)' }}>
-                          {isWin ? 'WIN' : 'LOSS'}
+                        <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 6px', borderRadius: '4px', backgroundColor: badgeBg, border: badgeBorder, color: badgeColor }}>
+                          {badgeText}
                         </span>
                         <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px' }}>
                           <Calendar size={10} /> {dateStr}
@@ -224,7 +244,7 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
                       </div>
                       <p style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>vs {opponent}</p>
                     </div>
-                    <div style={{ fontSize: '16px', fontFamily: 'var(--font-display)', fontWeight: 'bold', color: 'var(--primary)' }}>
+                    <div style={{ fontSize: '16px', fontFamily: 'var(--font-display)', fontWeight: 'bold', color: isDraw ? 'var(--text-primary)' : 'var(--primary)' }}>
                       {myScore} - {opponentScore}
                     </div>
                   </div>

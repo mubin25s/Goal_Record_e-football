@@ -37,6 +37,10 @@ export const UploadMatch: React.FC<UploadMatchProps> = ({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
+  const winVal = parseInt(winnerScore);
+  const loseVal = parseInt(loserScore);
+  const isDrawMode = !isNaN(winVal) && !isNaN(loseVal) && winVal === loseVal;
+
   // Load registered players from Supabase
   useEffect(() => {
     setLoadingUsers(true);
@@ -91,12 +95,12 @@ export const UploadMatch: React.FC<UploadMatchProps> = ({
       setErrorMsg('Enter valid score numbers.');
       return;
     }
-    if (winVal <= loseVal) {
-      setErrorMsg("Your score must be higher than the opponent's score!");
+    if (winVal < loseVal) {
+      setErrorMsg("Your score cannot be lower than the opponent's score!");
       return;
     }
     if (loserIsRegistered && !selectedLoserId) {
-      setErrorMsg('Select the opponent you defeated.');
+      setErrorMsg(isDrawMode ? 'Select the opponent you drew against.' : 'Select the opponent you defeated.');
       return;
     }
     if (!loserIsRegistered && !loserNameInput.trim()) {
@@ -145,8 +149,8 @@ export const UploadMatch: React.FC<UploadMatchProps> = ({
   return (
     <div style={{ maxWidth: '650px', margin: '0 auto' }}>
       <div style={{ marginBottom: '32px' }}>
-        <h2 style={{ fontSize: '32px', marginBottom: '8px' }}>Log a Victory</h2>
-        <p>Upload the screenshot, fill in the scores, and make sure your opponent never lives it down.</p>
+        <h2 style={{ fontSize: '32px', marginBottom: '8px' }}>{isDrawMode ? 'Log a Draw' : 'Log a Victory'}</h2>
+        <p>{isDrawMode ? 'Upload the screenshot, fill in the scores, and record the draw.' : 'Upload the screenshot, fill in the scores, and make sure your opponent never lives it down.'}</p>
       </div>
 
       {errorMsg && (
@@ -164,7 +168,7 @@ export const UploadMatch: React.FC<UploadMatchProps> = ({
 
         {/* Screenshot Upload */}
         <div className="form-group">
-          <label className="form-label">Match Screenshot (Proof of Victory)</label>
+          <label className="form-label">{isDrawMode ? 'Match Screenshot (Proof of Draw)' : 'Match Screenshot (Proof of Victory)'}</label>
           {imagePreview ? (
             <div style={{ position: 'relative', borderRadius: '8px', overflow: 'hidden', border: '1.5px solid var(--primary)' }}>
               <img src={imagePreview} alt="Preview" style={{ width: '100%', maxHeight: '300px', objectFit: 'contain', display: 'block', background: '#f0f0f0' }} />
@@ -244,7 +248,7 @@ export const UploadMatch: React.FC<UploadMatchProps> = ({
 
           {loserIsRegistered ? (
             <div className="form-group">
-              <label className="form-label" htmlFor="opponentSelect">Who did you destroy? 😈</label>
+              <label className="form-label" htmlFor="opponentSelect">{isDrawMode ? 'Who did you draw against? 🤝' : 'Who did you destroy? 😈'}</label>
               <select
                 id="opponentSelect" className="form-input" value={selectedLoserId}
                 onChange={handleOpponentSelect} required
@@ -309,7 +313,7 @@ export const UploadMatch: React.FC<UploadMatchProps> = ({
           ) : (
             <>
               <Award size={18} />
-              <span>Broadcast Victory 🔥</span>
+              <span>{isDrawMode ? 'Broadcast Draw 🤝' : 'Broadcast Victory 🔥'}</span>
             </>
           )}
         </button>

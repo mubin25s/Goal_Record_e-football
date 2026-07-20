@@ -50,8 +50,9 @@ export const ViewProfile: React.FC<ViewProfileProps> = ({ userId, onBack }) => {
     load();
   }, [userId]);
 
-  const wins   = matches.filter(m => m.winnerId === userId).length;
-  const losses = matches.length - wins;
+  const wins = matches.filter(m => m.winnerId === userId && m.winnerScore > m.loserScore).length;
+  const draws = matches.filter(m => m.winnerScore === m.loserScore).length;
+  const losses = matches.filter(m => m.winnerId !== userId && m.winnerScore > m.loserScore).length;
   const winRate = matches.length > 0 ? ((wins / matches.length) * 100).toFixed(1) : '0';
 
   let title = 'Benchwarmer 🪑', titleColor = 'var(--text-muted)';
@@ -109,10 +110,11 @@ export const ViewProfile: React.FC<ViewProfileProps> = ({ userId, onBack }) => {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '14px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '14px' }}>
         {[
           { label: 'Played', value: matches.length, color: 'var(--text-white)' },
           { label: 'Wins',   value: wins,   color: 'var(--success)' },
+          { label: 'Draws',  value: draws,  color: 'var(--text-muted)' },
           { label: 'Losses', value: losses, color: 'var(--danger)'  },
           { label: 'Win Rate', value: `${winRate}%`, color: 'var(--primary)' },
         ].map(s => (
@@ -134,17 +136,24 @@ export const ViewProfile: React.FC<ViewProfileProps> = ({ userId, onBack }) => {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column' }}>
             {matches.map(m => {
-              const isWin = m.winnerId === userId;
-              const opponent = isWin ? m.loserUsername : m.winnerUsername;
-              const myScore = isWin ? m.winnerScore : m.loserScore;
-              const theirScore = isWin ? m.loserScore : m.winnerScore;
+              const isDraw = m.winnerScore === m.loserScore;
+              const isWin = !isDraw && m.winnerId === userId;
+              const opponent = isWin || (isDraw && m.winnerId === userId) ? m.loserUsername : m.winnerUsername;
+              const myScore = isWin || (isDraw && m.winnerId === userId) ? m.winnerScore : m.loserScore;
+              const theirScore = isWin || (isDraw && m.winnerId === userId) ? m.loserScore : m.winnerScore;
               const date = new Date(m.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+              
+              const badgeText = isDraw ? 'DRAW' : isWin ? 'WIN' : 'LOSS';
+              const badgeBg = isDraw ? 'rgba(255, 251, 212, 0.05)' : isWin ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)';
+              const badgeBorder = isDraw ? '1px solid var(--border-color)' : 'none';
+              const badgeColor = isDraw ? 'var(--text-muted)' : isWin ? 'var(--success)' : 'var(--danger)';
+
               return (
                 <div key={m.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 24px', borderBottom: '1px solid var(--border-color)' }}>
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 7px', borderRadius: '4px', backgroundColor: isWin ? 'rgba(16,185,129,0.12)' : 'rgba(239,68,68,0.12)', color: isWin ? 'var(--success)' : 'var(--danger)' }}>
-                        {isWin ? 'WIN' : 'LOSS'}
+                      <span style={{ fontSize: '11px', fontWeight: 'bold', padding: '2px 7px', borderRadius: '4px', backgroundColor: badgeBg, border: badgeBorder, color: badgeColor }}>
+                        {badgeText}
                       </span>
                       <span style={{ fontSize: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '3px' }}>
                         <Calendar size={10} /> {date}
@@ -152,7 +161,7 @@ export const ViewProfile: React.FC<ViewProfileProps> = ({ userId, onBack }) => {
                     </div>
                     <p style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>vs {opponent}</p>
                   </div>
-                  <div style={{ fontSize: '18px', fontFamily: 'var(--font-display)', fontWeight: 800, color: isWin ? 'var(--success)' : 'var(--danger)' }}>
+                  <div style={{ fontSize: '18px', fontFamily: 'var(--font-display)', fontWeight: 800, color: isDraw ? 'var(--text-primary)' : isWin ? 'var(--success)' : 'var(--danger)' }}>
                     {myScore} – {theirScore}
                   </div>
                 </div>
