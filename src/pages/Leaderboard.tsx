@@ -15,7 +15,7 @@ interface PlayerStats {
   goalsConceded: number;
 }
 
-export const Leaderboard: React.FC = () => {
+export const Leaderboard: React.FC<{ onViewProfile?: (userId: string) => void }> = ({ onViewProfile }) => {
   const [stats, setStats]       = useState<PlayerStats[]>([]);
   const [loading, setLoading]   = useState(true);
   const [activeTab, setActiveTab] = useState<'fame' | 'shame' | 'h2h'>('fame');
@@ -162,7 +162,10 @@ export const Leaderboard: React.FC = () => {
                             {player.username.substring(0, 2).toUpperCase()}
                           </div>
                           <div>
-                            <span style={{ fontWeight: 600, color: isTop ? (activeTab === 'fame' ? 'var(--accent)' : '#FFA7A7') : 'var(--text-white)' }}>{player.username}</span>
+                            <span
+                              onClick={() => onViewProfile && onViewProfile(player.id)}
+                              style={{ fontWeight: 600, color: isTop ? (activeTab === 'fame' ? 'var(--accent)' : '#FFA7A7') : 'var(--text-white)', cursor: onViewProfile ? 'pointer' : 'default', textDecoration: onViewProfile ? 'underline' : 'none', textUnderlineOffset: '3px' }}
+                            >{player.username}</span>
                             {isTop && activeTab === 'shame' && <span style={{ fontSize: '10px', display: 'block', color: '#FFA7A7', fontWeight: 500 }}>(KING OF NOOBS 🤡)</span>}
                           </div>
                         </div>

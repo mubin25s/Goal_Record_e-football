@@ -32,15 +32,32 @@ export interface SBProfile {
   username: string;
   avatar_url: string | null;
   email: string | null;
-  efootball_id: string | null;
+  efootball_id?: string | null;
 }
 
 // ─── Profile helpers ──────────────────────────────────────────────────────────
 export const upsertProfile = async (profile: SBProfile) => {
-  const { error } = await supabase
+  // First try to insert; if the row already exists, only update the login-related fields
+  // and never touch efootball_id so users don't lose their saved game ID on login.
+  const { error: insertError } = await supabase
     .from('profiles')
-    .upsert({ ...profile, updated_at: new Date().toISOString() }, { onConflict: 'id' });
-  if (error) console.error('upsertProfile error:', error.message);
+    .insert({ ...profile, updated_at: new Date().toISOString() });
+
+  if (insertError && insertError.code === '23505') {
+    // Row already exists — update only non-game fields
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        username:   profile.username,
+        avatar_url: profile.avatar_url,
+        email:      profile.email,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', profile.id);
+    if (error) console.error('upsertProfile update error:', error.message);
+  } else if (insertError) {
+    console.error('upsertProfile insert error:', insertError.message);
+  }
 };
 
 export const fetchProfile = async (uid: string): Promise<SBProfile | null> => {

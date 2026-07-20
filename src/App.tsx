@@ -8,6 +8,7 @@ import { Feed } from './pages/Feed';
 import { UploadMatch } from './pages/UploadMatch';
 import { Leaderboard } from './pages/Leaderboard';
 import { Profile } from './pages/Profile';
+import { ViewProfile } from './pages/ViewProfile';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -15,7 +16,8 @@ function App() {
   const [currentPage, setCurrentPage] = useState<string>('feed');
   const [loading, setLoading] = useState(true);
   const [showLogin, setShowLogin] = useState(false);
-  const [feedKey, setFeedKey] = useState(0); // increment to force feed refresh
+  const [feedKey, setFeedKey] = useState(0);
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null);
 
 
   useEffect(() => {
@@ -32,11 +34,10 @@ function App() {
 
         // Upsert profile to Supabase, then fetch custom username
         await upsertProfile({
-          id:           firebaseUser.uid,
-          username:     firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Player',
-          avatar_url:   firebaseUser.photoURL || null,
-          email:        firebaseUser.email || null,
-          efootball_id: null,
+          id:         firebaseUser.uid,
+          username:   firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Player',
+          avatar_url: firebaseUser.photoURL || null,
+          email:      firebaseUser.email || null,
         });
         const sbProfile = await fetchProfile(firebaseUser.uid);
         if (sbProfile?.username) {
@@ -108,7 +109,7 @@ function App() {
           ? <UploadMatch currentUserId={user.uid} currentUsername={profile?.username || 'Player'} onUploadSuccess={() => { setFeedKey(k => k + 1); setCurrentPage('feed'); }} />
           : null;
       case 'leaderboard':
-        return <Leaderboard />;
+        return <Leaderboard onViewProfile={(uid) => { setViewingUserId(uid); setCurrentPage('viewprofile'); }} />;
       case 'profile':
         return user
           ? (
@@ -116,6 +117,15 @@ function App() {
               currentUserId={user.uid}
               userEmail={user.email || ''}
               onProfileUpdate={handleProfileUpdate}
+            />
+          )
+          : null;
+      case 'viewprofile':
+        return viewingUserId
+          ? (
+            <ViewProfile
+              userId={viewingUserId}
+              onBack={() => { setViewingUserId(null); setCurrentPage('leaderboard'); }}
             />
           )
           : null;

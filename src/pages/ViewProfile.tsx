@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { fetchUserMatches, fetchAllProfiles, type SBMatch, type SBProfile } from '../supabaseClient';
-import { Calendar, Activity, Trophy, X, ChevronLeft } from 'lucide-react';
+import { Calendar, Activity, Trophy, X, ChevronLeft, Gamepad2 } from 'lucide-react';
 
 interface ViewProfileProps {
   userId: string;
@@ -103,6 +103,11 @@ export const ViewProfile: React.FC<ViewProfileProps> = ({ userId, onBack }) => {
         </div>
         <div style={{ flex: 1 }}>
           <h2 style={{ fontSize: '26px', marginBottom: '4px' }}>{profile.username}</h2>
+          {profile.efootball_id && (
+            <p style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 600, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Gamepad2 size={13} /> eFootball ID: {profile.efootball_id}
+            </p>
+          )}
           <div style={{ display: 'inline-flex', background: 'rgba(169,14,2,0.08)', padding: '5px 14px', borderRadius: '20px', border: '1px solid rgba(169,14,2,0.15)', fontSize: '13px', fontWeight: 'bold', color: titleColor }}>
             {title}
           </div>
@@ -112,7 +117,7 @@ export const ViewProfile: React.FC<ViewProfileProps> = ({ userId, onBack }) => {
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', gap: '14px' }}>
         {[
-          { label: 'Played', value: matches.length, color: 'var(--text-white)' },
+          { label: 'Played', value: matches.length, color: 'var(--text-primary)' },
           { label: 'Wins',   value: wins,   color: 'var(--success)' },
           { label: 'Draws',  value: draws,  color: 'var(--text-muted)' },
           { label: 'Losses', value: losses, color: 'var(--danger)'  },
