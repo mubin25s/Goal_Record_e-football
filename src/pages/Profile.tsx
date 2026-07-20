@@ -167,7 +167,7 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
       {/* Stats Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '16px' }}>
         {[
-          { label: 'Matches', value: totalPlayed, color: 'white' },
+          { label: 'Matches', value: totalPlayed, color: 'var(--text-primary)' },
           { label: 'Wins', value: wins, color: 'var(--success)' },
           { label: 'Draws', value: draws, color: 'var(--text-muted)' },
           { label: 'Losses', value: losses, color: 'var(--danger)' },
