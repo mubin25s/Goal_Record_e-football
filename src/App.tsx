@@ -32,10 +32,11 @@ function App() {
 
         // Upsert profile to Supabase, then fetch custom username
         await upsertProfile({
-          id:         firebaseUser.uid,
-          username:   firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Player',
-          avatar_url: firebaseUser.photoURL || null,
-          email:      firebaseUser.email || null,
+          id:           firebaseUser.uid,
+          username:     firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Player',
+          avatar_url:   firebaseUser.photoURL || null,
+          email:        firebaseUser.email || null,
+          efootball_id: null,
         });
         const sbProfile = await fetchProfile(firebaseUser.uid);
         if (sbProfile?.username) {

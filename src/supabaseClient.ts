@@ -32,6 +32,7 @@ export interface SBProfile {
   username: string;
   avatar_url: string | null;
   email: string | null;
+  efootball_id: string | null;
 }
 
 // ─── Profile helpers ──────────────────────────────────────────────────────────
@@ -61,6 +62,14 @@ export const updateProfileUsername = async (uid: string, username: string) => {
   const { error } = await supabase
     .from('profiles')
     .update({ username, updated_at: new Date().toISOString() })
+    .eq('id', uid);
+  if (error) throw new Error(error.message);
+};
+
+export const updateProfileEfootballId = async (uid: string, efootball_id: string) => {
+  const { error } = await supabase
+    .from('profiles')
+    .update({ efootball_id, updated_at: new Date().toISOString() })
     .eq('id', uid);
   if (error) throw new Error(error.message);
 };

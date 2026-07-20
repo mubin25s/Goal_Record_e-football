@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import {
-  fetchProfile, fetchUserMatches, updateProfileUsername,
+  fetchProfile, fetchUserMatches, updateProfileEfootballId,
   type SBMatch,
 } from '../supabaseClient';
-import { Settings, Check, Calendar, Activity } from 'lucide-react';
+import { Check, Calendar, Activity, Gamepad2 } from 'lucide-react';
 
 interface ProfileProps {
   currentUserId: string;
@@ -33,9 +33,10 @@ const toMatch = (r: SBMatch): Match => ({
   createdAt:     r.created_at,
 });
 
-export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onProfileUpdate }) => {
+export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onProfileUpdate: _onProfileUpdate }) => {
   const [username, setUsername]   = useState('');
   const [avatarUrl, setAvatarUrl] = useState('');
+  const [efootballId, setEfootballId] = useState('');
   const [updating, setUpdating]   = useState(false);
   const [loading, setLoading]     = useState(true);
   const [updateMsg, setUpdateMsg] = useState('');
@@ -61,6 +62,7 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
         if (profile) {
           setUsername(profile.username || '');
           setAvatarUrl(profile.avatar_url || '');
+          setEfootballId(profile.efootball_id || '');
         }
 
         const allMatches = matchRows.map(toMatch);
@@ -102,17 +104,16 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
     fetchData();
   }, [currentUserId]);
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
+  const handleUpdateEfootballId = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (username.trim().length < 3) { alert('Username must be at least 3 characters.'); return; }
+    if (efootballId.trim().length < 2) { alert('eFootball ID must be at least 2 characters.'); return; }
     setUpdating(true);
     setUpdateMsg('');
     try {
-      await updateProfileUsername(currentUserId, username.trim());
-      setUpdateMsg('Profile updated successfully!');
-      onProfileUpdate(username.trim(), avatarUrl.trim() || undefined);
+      await updateProfileEfootballId(currentUserId, efootballId.trim());
+      setUpdateMsg('eFootball ID saved!');
     } catch (err: any) {
-      alert('Error updating profile: ' + err.message);
+      alert('Error saving eFootball ID: ' + err.message);
     } finally {
       setUpdating(false);
     }
@@ -157,7 +158,12 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
         </div>
         <div style={{ flex: 1, minWidth: '200px' }}>
           <h3 style={{ fontSize: '24px', color: 'var(--text-primary)' }}>{username}</h3>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '8px' }}>{userEmail}</p>
+          <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '4px' }}>{userEmail}</p>
+          {efootballId && (
+            <p style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 600, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <Gamepad2 size={13} /> eFootball ID: {efootballId}
+            </p>
+          )}
           <div style={{ display: 'inline-flex', background: 'rgba(169,14,2,0.08)', padding: '6px 14px', borderRadius: '20px', border: '1px solid rgba(169,14,2,0.2)', fontSize: '13px', fontWeight: 'bold', color: titleColor }}>
             {userTitle}
           </div>
@@ -184,24 +190,33 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
       {/* Edit + History */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
 
-        {/* Edit Profile */}
+        {/* eFootball Account */}
         <section className="card" style={{ alignSelf: 'start' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-            <Settings size={20} style={{ color: 'var(--accent)' }} />
-            <h3 style={{ fontSize: '18px' }}>Edit Profile</h3>
+            <Gamepad2 size={20} style={{ color: 'var(--accent)' }} />
+            <h3 style={{ fontSize: '18px' }}>eFootball Account</h3>
           </div>
           {updateMsg && (
             <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid var(--success)', color: '#A7F3D0', padding: '10px 14px', borderRadius: '6px', fontSize: '13px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Check size={16} /><span>{updateMsg}</span>
             </div>
           )}
-          <form onSubmit={handleUpdateProfile} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <form onSubmit={handleUpdateEfootballId} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div className="form-group">
-              <label className="form-label" htmlFor="edit-username">Display Name</label>
-              <input id="edit-username" type="text" className="form-input" value={username} onChange={(e) => setUsername(e.target.value)} required />
+              <label className="form-label" htmlFor="edit-efootball-id">eFootball In-Game Username</label>
+              <input
+                id="edit-efootball-id"
+                type="text"
+                className="form-input"
+                value={efootballId}
+                onChange={(e) => setEfootballId(e.target.value)}
+                required
+                placeholder="Your eFootball in-game ID"
+              />
+              <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px' }}>This will be visible to everyone on your profile.</p>
             </div>
             <button type="submit" className="btn btn-primary btn-block" disabled={updating} style={{ fontSize: '14px', padding: '10px' }}>
-              {updating ? 'Saving...' : 'Save Changes'}
+              {updating ? 'Saving...' : 'Save eFootball ID'}
             </button>
           </form>
         </section>
