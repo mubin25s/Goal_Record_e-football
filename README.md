@@ -10,6 +10,17 @@ Visit the live application here:
 
 ---
 
+## 🌟 Features
+- **User Authentication**: Secure login via Google Authentication.
+- **Match Logging**: Submit match results, scores, and upload screenshot evidence.
+- **Social Feed**: Scroll through recent battles. React (👍, ❤️, 😂, 😮, 😢) and banter in the comments!
+- **Leaderboards**: Dynamic rankings including a Hall of Fame and Wall of Shame based on player performance.
+- **Head-to-Head Analytics**: Select any two players to compare their historical rivalry, win rates, and matchup stats.
+- **User Profiles**: Track personal statistics (Matches, Wins, Draws, Losses, Win Rate, Goal Difference) and customize display names.
+- **Fully Responsive**: Designed to look and feel premium on both desktop and mobile devices.
+
+---
+
 ## 📸 Scoring Demonstration
 Below is a demonstration of an eFootball match stats screen which users upload as evidence when submitting scores:
 
