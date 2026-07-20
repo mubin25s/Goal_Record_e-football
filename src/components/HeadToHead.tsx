@@ -96,9 +96,9 @@ export const HeadToHead: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       
       {/* Selection Panel */}
-      <div className="card" style={{ display: 'flex', gap: '20px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between', padding: '20px 24px' }}>
-        <div style={{ flex: 1, minWidth: '220px' }}>
-          <label className="form-label" style={{ marginBottom: '6px', display: 'block', fontSize: '13px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Player One</label>
+      <div className="card" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'nowrap', justifyContent: 'space-between', padding: '16px 12px' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <label className="form-label" style={{ marginBottom: '6px', display: 'block', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Player One</label>
           <select
             className="form-input"
             value={playerAId}
@@ -111,7 +111,7 @@ export const HeadToHead: React.FC = () => {
                 setPlayerBId(alternative?.id || '');
               }
             }}
-            style={{ width: '100%', appearance: 'auto', backgroundColor: 'var(--bg-input)' }}
+            style={{ width: '100%', appearance: 'auto', backgroundColor: 'var(--bg-input)', fontSize: '14px', padding: '8px 4px' }}
           >
             <option value="">-- Select Player --</option>
             {profiles.map(p => (
@@ -120,12 +120,12 @@ export const HeadToHead: React.FC = () => {
           </select>
         </div>
 
-        <div style={{ fontSize: '20px', fontWeight: 'bold', color: 'var(--primary)', fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '40px', paddingTop: '20px' }}>
+        <div style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--primary)', fontFamily: 'var(--font-display)', display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: '30px', paddingTop: '20px', flexShrink: 0 }}>
           VS
         </div>
 
-        <div style={{ flex: 1, minWidth: '220px' }}>
-          <label className="form-label" style={{ marginBottom: '6px', display: 'block', fontSize: '13px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Player Two</label>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <label className="form-label" style={{ marginBottom: '6px', display: 'block', fontSize: '11px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Player Two</label>
           <select
             className="form-input"
             value={playerBId}
@@ -138,7 +138,7 @@ export const HeadToHead: React.FC = () => {
                 setPlayerAId(alternative?.id || '');
               }
             }}
-            style={{ width: '100%', appearance: 'auto', backgroundColor: 'var(--bg-input)' }}
+            style={{ width: '100%', appearance: 'auto', backgroundColor: 'var(--bg-input)', fontSize: '14px', padding: '8px 4px' }}
           >
             <option value="">-- Select Player --</option>
             {profiles.map(p => (
@@ -158,58 +158,58 @@ export const HeadToHead: React.FC = () => {
           <div className="card" style={{
             background: 'linear-gradient(135deg, rgba(169, 14, 2, 0.05) 0%, rgba(169, 14, 2, 0.01) 100%)',
             border: '1.5px solid rgba(169, 14, 2, 0.15)',
-            padding: '24px 12px',
+            padding: '16px 8px',
             position: 'relative',
             overflow: 'hidden'
           }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'nowrap', gap: '8px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '4px', width: '100%' }}>
               
               {/* Player A Side */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', flex: 1, minWidth: 0 }}>
-                <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '24px', border: '2px solid rgba(169, 14, 2, 0.3)', overflow: 'hidden', marginBottom: '10px', boxShadow: '0 0 15px rgba(169,14,2,0.15)', flexShrink: 0 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', minWidth: 0 }}>
+                <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '20px', border: '2px solid rgba(169, 14, 2, 0.3)', overflow: 'hidden', marginBottom: '8px', boxShadow: '0 0 15px rgba(169,14,2,0.15)' }}>
                   {playerA.avatar_url ? (
                     <img src={playerA.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
                     playerA.username.substring(0, 2).toUpperCase()
                   )}
                 </div>
-                <h3 style={{ fontSize: '15px', color: 'var(--text-white)', marginBottom: '4px', wordBreak: 'break-word', lineHeight: 1.2 }}>{playerA.username}</h3>
-                <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 'bold', background: 'rgba(169,14,2,0.06)', padding: '3px 8px', borderRadius: '10px', whiteSpace: 'nowrap' }}>
+                <h3 style={{ fontSize: '13px', color: 'var(--text-white)', marginBottom: '4px', wordBreak: 'break-word', lineHeight: 1.1 }}>{playerA.username}</h3>
+                <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: 'bold', background: 'rgba(169,14,2,0.06)', padding: '2px 6px', borderRadius: '8px', whiteSpace: 'nowrap' }}>
                   WR {aWinRate}%
                 </span>
               </div>
 
               {/* Central VS Record */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flexShrink: 0, padding: '0 4px' }}>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '6px', whiteSpace: 'nowrap' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '0' }}>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em', marginBottom: '4px', whiteSpace: 'nowrap' }}>
                   Head to Head
                 </div>
-                <div style={{ fontSize: '28px', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-white)', display: 'flex', alignItems: 'baseline', gap: '4px', marginBottom: '4px', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: '24px', fontWeight: 800, fontFamily: 'var(--font-display)', color: 'var(--text-white)', display: 'flex', alignItems: 'baseline', gap: '3px', marginBottom: '4px', whiteSpace: 'nowrap' }}>
                   <span>{aWins}</span>
-                  <span style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: 500 }}>W</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 500 }}>W</span>
                   <span style={{ color: 'var(--border-color)', margin: '0 2px' }}>-</span>
                   <span>{draws}</span>
-                  <span style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: 500 }}>D</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 500 }}>D</span>
                   <span style={{ color: 'var(--border-color)', margin: '0 2px' }}>-</span>
                   <span>{bWins}</span>
-                  <span style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: 500 }}>L</span>
+                  <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: 500 }}>L</span>
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: '10px', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
                   {totalPlayed} {totalPlayed === 1 ? 'Match' : 'Matches'}
                 </div>
               </div>
 
               {/* Player B Side */}
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', flex: 1, minWidth: 0 }}>
-                <div style={{ width: '64px', height: '64px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '24px', border: '2px solid rgba(169, 14, 2, 0.3)', overflow: 'hidden', marginBottom: '10px', boxShadow: '0 0 15px rgba(169,14,2,0.15)', flexShrink: 0 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', minWidth: 0 }}>
+                <div style={{ width: '60px', height: '60px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '20px', border: '2px solid rgba(169, 14, 2, 0.3)', overflow: 'hidden', marginBottom: '8px', boxShadow: '0 0 15px rgba(169,14,2,0.15)' }}>
                   {playerB.avatar_url ? (
                     <img src={playerB.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
                     playerB.username.substring(0, 2).toUpperCase()
                   )}
                 </div>
-                <h3 style={{ fontSize: '15px', color: 'var(--text-white)', marginBottom: '4px', wordBreak: 'break-word', lineHeight: 1.2 }}>{playerB.username}</h3>
-                <span style={{ fontSize: '11px', color: 'var(--primary)', fontWeight: 'bold', background: 'rgba(169,14,2,0.06)', padding: '3px 8px', borderRadius: '10px', whiteSpace: 'nowrap' }}>
+                <h3 style={{ fontSize: '13px', color: 'var(--text-white)', marginBottom: '4px', wordBreak: 'break-word', lineHeight: 1.1 }}>{playerB.username}</h3>
+                <span style={{ fontSize: '10px', color: 'var(--primary)', fontWeight: 'bold', background: 'rgba(169,14,2,0.06)', padding: '2px 6px', borderRadius: '8px', whiteSpace: 'nowrap' }}>
                   WR {bWinRate}%
                 </span>
               </div>

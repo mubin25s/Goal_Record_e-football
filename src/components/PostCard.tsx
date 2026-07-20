@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   fetchMatchComments, insertMatchComment, fetchMatchReaction, fetchMatchReactionCounts,
-  upsertMatchReaction, deleteMatchReaction, type SBMatch, type SBComment,
+  upsertMatchReaction, deleteMatchReaction, fetchAllProfiles, fetchProfile, type SBMatch, type SBComment,
 } from '../supabaseClient';
 import {
   MessageSquare, ChevronDown, ChevronUp, Send,
@@ -13,13 +13,14 @@ interface Comment {
   id: string;
   authorId: string;
   authorName: string;
+  authorAvatar?: string | null;
   content: string;
   createdAt: string;
 }
 
 interface PostCardProps {
   match: SBMatch;
-  currentUser: { uid: string; displayName: string } | null;
+  currentUser: { uid: string; displayName: string; avatarUrl?: string } | null;
   onAuthRequired: () => void;
   onViewProfile: (uid: string) => void;
 }
@@ -35,7 +36,7 @@ const REACTIONS: { type: ReactionType; emoji: string; label: string; Icon: React
 ];
 
 // Simple initial avatar
-const Avatar: React.FC<{ name: string; size?: number }> = ({ name, size = 40 }) => (
+const Avatar: React.FC<{ name: string; avatarUrl?: string | null; size?: number }> = ({ name, avatarUrl, size = 40 }) => (
   <div style={{
     width: size, height: size, borderRadius: '50%', flexShrink: 0,
     backgroundColor: 'var(--primary)', color: 'var(--accent)',
@@ -43,8 +44,13 @@ const Avatar: React.FC<{ name: string; size?: number }> = ({ name, size = 40 }) 
     fontWeight: 700, fontSize: size * 0.38,
     border: '1.5px solid var(--border-color)',
     fontFamily: 'var(--font-display)',
+    overflow: 'hidden'
   }}>
-    {name.substring(0, 2).toUpperCase()}
+    {avatarUrl ? (
+      <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+    ) : (
+      name.substring(0, 2).toUpperCase()
+    )}
   </div>
 );
 
@@ -56,6 +62,13 @@ export const PostCard: React.FC<PostCardProps> = ({ match, currentUser, onAuthRe
   const [myReaction, setMyReaction]       = useState<ReactionType | null>(null);
   const [counts, setCounts]               = useState<Record<ReactionType, number>>({ like: 0, love: 0, haha: 0, sad: 0, wow: 0 });
   const [reactionBarOpen, setReactionBarOpen] = useState(false);
+  const [winnerAvatar, setWinnerAvatar]   = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchProfile(match.winner_id).then(p => {
+      if (p?.avatar_url) setWinnerAvatar(p.avatar_url);
+    });
+  }, [match.winner_id]);
 
   // Load reactions on load
   useEffect(() => {
@@ -78,15 +91,22 @@ export const PostCard: React.FC<PostCardProps> = ({ match, currentUser, onAuthRe
   // Load comments when comments area is opened
   useEffect(() => {
     if (!commentsOpen) return;
-    fetchMatchComments(match.id).then(rows => {
-      // For comments, we can fetch profiles to resolve usernames
-      setComments(rows.map((r: SBComment) => ({
-        id:        r.id,
-        authorId:  r.user_id,
-        authorName: r.user_id === currentUser?.uid ? currentUser.displayName : `Player (${r.user_id.substring(0, 5)})`,
-        content:   r.content,
-        createdAt: r.created_at,
-      })));
+    Promise.all([
+      fetchMatchComments(match.id),
+      fetchAllProfiles()
+    ]).then(([rows, profiles]) => {
+      setComments(rows.map((r: SBComment) => {
+        const p = profiles.find(pr => pr.id === r.user_id);
+        const name = p ? p.username : (r.user_id === currentUser?.uid ? currentUser.displayName : `Player (${r.user_id.substring(0, 5)})`);
+        return {
+          id:        r.id,
+          authorId:  r.user_id,
+          authorName: name,
+          authorAvatar: p ? p.avatar_url : (r.user_id === currentUser?.uid ? currentUser.avatarUrl : null),
+          content:   r.content,
+          createdAt: r.created_at,
+        };
+      }));
     });
   }, [commentsOpen, match.id, currentUser]);
 
@@ -131,14 +151,22 @@ export const PostCard: React.FC<PostCardProps> = ({ match, currentUser, onAuthRe
         content:  text,
       });
       // Refresh comments to get usernames and server timestamps
-      const fresh = await fetchMatchComments(match.id);
-      setComments(fresh.map((r: SBComment) => ({
-        id:        r.id,
-        authorId:  r.user_id,
-        authorName: r.user_id === currentUser?.uid ? currentUser.displayName : `Player (${r.user_id.substring(0, 5)})`,
-        content:   r.content,
-        createdAt: r.created_at,
-      })));
+      const [fresh, profiles] = await Promise.all([
+        fetchMatchComments(match.id),
+        fetchAllProfiles()
+      ]);
+      setComments(fresh.map((r: SBComment) => {
+        const p = profiles.find(pr => pr.id === r.user_id);
+        const name = p ? p.username : (r.user_id === currentUser?.uid ? currentUser.displayName : `Player (${r.user_id.substring(0, 5)})`);
+        return {
+          id:        r.id,
+          authorId:  r.user_id,
+          authorName: name,
+          authorAvatar: p ? p.avatar_url : (r.user_id === currentUser?.uid ? currentUser.avatarUrl : null),
+          content:   r.content,
+          createdAt: r.created_at,
+        };
+      }));
     } catch (err: any) {
       alert('Could not comment: ' + err.message);
     } finally {
@@ -157,7 +185,7 @@ export const PostCard: React.FC<PostCardProps> = ({ match, currentUser, onAuthRe
       
       {/* Header Info */}
       <div className="post-header" style={{ marginBottom: '16px' }}>
-        <Avatar name={match.winner_username} />
+        <Avatar name={match.winner_username} avatarUrl={winnerAvatar} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <button
@@ -315,7 +343,7 @@ export const PostCard: React.FC<PostCardProps> = ({ match, currentUser, onAuthRe
             <div className="comments-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
               {comments.map(c => (
                 <div key={c.id} className="comment-item" style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-                  <Avatar name={c.authorName} size={30} />
+                  <Avatar name={c.authorName} avatarUrl={c.authorAvatar} size={30} />
                   <div className="comment-bubble" style={{ background: 'rgba(255, 255, 255, 0.03)', padding: '10px 14px', borderRadius: '12px', flex: 1 }}>
                     <span className="comment-author" style={{ display: 'block', fontWeight: 600, fontSize: '13px', color: 'var(--accent)', marginBottom: '3px' }}>
                       {c.authorName}
@@ -332,7 +360,7 @@ export const PostCard: React.FC<PostCardProps> = ({ match, currentUser, onAuthRe
           {/* Comment Input */}
           {currentUser ? (
             <div className="comment-input-row" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <Avatar name={currentUser.displayName} size={30} />
+              <Avatar name={currentUser.displayName} avatarUrl={currentUser.avatarUrl} size={30} />
               <input
                 type="text"
                 className="form-input comment-input"
