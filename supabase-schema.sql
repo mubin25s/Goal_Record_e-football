@@ -68,6 +68,61 @@ ALTER TABLE public.post_reactions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.post_comments  DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.matches        DISABLE ROW LEVEL SECURITY;
 
+-- 6. TOURNAMENTS TABLE
+CREATE TABLE IF NOT EXISTS public.tournaments (
+    id            UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
+    title         TEXT        NOT NULL,
+    player_count  INTEGER     NOT NULL CHECK (player_count IN (3, 4, 5, 8, 10, 12, 16, 32)),
+    status        TEXT        NOT NULL DEFAULT 'group_stage', -- 'group_stage', 'knockout_stage', 'completed'
+    created_by    TEXT        NOT NULL,  -- Firebase UID of Admin
+    created_at    TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- 7. TOURNAMENT PLAYERS TABLE
+CREATE TABLE IF NOT EXISTS public.tournament_players (
+    id            UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
+    tournament_id UUID        NOT NULL REFERENCES public.tournaments(id) ON DELETE CASCADE,
+    player_id     TEXT        NOT NULL,  -- Firebase UID or generated ID
+    player_name   TEXT        NOT NULL,
+    avatar_url    TEXT,
+    group_letter  TEXT,                  -- 'A', 'B', 'C', etc.
+    seed          INTEGER     DEFAULT 0
+);
+
+-- 8. TOURNAMENT MATCHES TABLE
+CREATE TABLE IF NOT EXISTS public.tournament_matches (
+    id              UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
+    tournament_id   UUID        NOT NULL REFERENCES public.tournaments(id) ON DELETE CASCADE,
+    stage           TEXT        NOT NULL,  -- 'group', 'round_of_16', 'quarter_final', 'semi_final', 'final'
+    group_letter    TEXT,                  -- 'A', 'B', etc. for group stage
+    match_number    INTEGER     NOT NULL,
+    player1_id      TEXT        NOT NULL,
+    player1_name    TEXT        NOT NULL,
+    player2_id      TEXT        NOT NULL,
+    player2_name    TEXT        NOT NULL,
+    player1_score   INTEGER,
+    player2_score   INTEGER,
+    proof_image_url TEXT,
+    submitted_by    TEXT,
+    status          TEXT        NOT NULL DEFAULT 'pending', -- 'pending', 'completed', 'locked'
+    winner_id       TEXT,
+    updated_at      TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- 9. DISABLE RLS & ALLOW PUBLIC ACCESS FOR TOURNAMENTS
+ALTER TABLE IF EXISTS public.tournaments           DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.tournament_players     DISABLE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS public.tournament_matches     DISABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public tournaments access" ON public.tournaments;
+CREATE POLICY "Public tournaments access" ON public.tournaments FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public tournament_players access" ON public.tournament_players;
+CREATE POLICY "Public tournament_players access" ON public.tournament_players FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public tournament_matches access" ON public.tournament_matches;
+CREATE POLICY "Public tournament_matches access" ON public.tournament_matches FOR ALL USING (true) WITH CHECK (true);
+
 -- 7. STORAGE — matches bucket (public, allow anon uploads)
 INSERT INTO storage.buckets (id, name, public, file_size_limit)
 VALUES ('matches', 'matches', true, 5242880)

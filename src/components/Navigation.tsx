@@ -1,7 +1,7 @@
 import React from 'react';
 import { auth } from '../firebaseClient';
 import { signOut } from 'firebase/auth';
-import { Flame, PlusSquare, Award, User, LogOut, LogIn } from 'lucide-react';
+import { Flame, PlusSquare, Award, User, LogOut, LogIn, Trophy } from 'lucide-react';
 
 interface NavigationProps {
   currentPage: string;
@@ -22,14 +22,16 @@ export const Navigation: React.FC<NavigationProps> = ({
   isGuest = false,
   onLoginRequest,
 }) => {
-  // All users see Feed; authenticated users see extra nav items
+  // All users see Feed & Tournaments; authenticated users see extra nav items
   const guestItems = [
     { id: 'feed',        name: 'Goals Feed', icon: Flame },
+    { id: 'tournaments', name: 'Tournaments', icon: Trophy },
   ];
   const authItems = [
     { id: 'feed',        name: 'Goals Feed', icon: Flame  },
     { id: 'upload',      name: 'Submit Score', icon: PlusSquare },
     { id: 'leaderboard', name: 'Leaderboard',  icon: Award     },
+    { id: 'tournaments', name: 'Tournaments', icon: Trophy    },
     { id: 'profile',     name: 'My Profile',   icon: User      },
   ];
   const navItems = isGuest ? guestItems : authItems;

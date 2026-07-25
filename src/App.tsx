@@ -9,6 +9,7 @@ import { UploadMatch } from './pages/UploadMatch';
 import { Leaderboard } from './pages/Leaderboard';
 import { Profile } from './pages/Profile';
 import { ViewProfile } from './pages/ViewProfile';
+import { TournamentPage } from './pages/TournamentPage';
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -18,7 +19,6 @@ function App() {
   const [showLogin, setShowLogin] = useState(false);
   const [feedKey, setFeedKey] = useState(0);
   const [viewingUserId, setViewingUserId] = useState<string | null>(null);
-
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -110,6 +110,13 @@ function App() {
           : null;
       case 'leaderboard':
         return <Leaderboard onViewProfile={(uid) => { setViewingUserId(uid); setCurrentPage('viewprofile'); }} />;
+      case 'tournaments':
+        return (
+          <TournamentPage
+            currentUserId={user ? user.uid : null}
+            currentUsername={profile?.username || 'Player'}
+          />
+        );
       case 'profile':
         return user
           ? (
