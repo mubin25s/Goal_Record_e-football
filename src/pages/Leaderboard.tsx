@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { fetchAllMatches, fetchAllProfiles, SBMatch, SBProfile } from '../supabaseClient';
+import { fetchAllMatches, fetchAllProfiles, type SBMatch, type SBProfile } from '../supabaseClient';
 import { Crown, ShieldAlert, Award, Frown, Users, Calendar, History } from 'lucide-react';
 import { HeadToHead } from '../components/HeadToHead';
 
@@ -82,7 +82,7 @@ export const Leaderboard: React.FC<{ onViewProfile?: (userId: string) => void }>
 
   // Compute stats filtered by selected month
   const currentMonthKey = getCurrentMonthKey();
-  const isCurrentMonthSelected = selectedMonth === currentMonthKey;
+
 
   const filteredMatches = selectedMonth === 'all'
     ? matches
@@ -154,8 +154,12 @@ export const Leaderboard: React.FC<{ onViewProfile?: (userId: string) => void }>
         gap: '16px', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid var(--border-color)'
       }}>
         <div>
-          <h2 style={{ fontSize: '28px', fontWeight: 800, marginBottom: '4px' }}>Leaderboards</h2>
-          <p style={{ fontSize: '14px', color: 'var(--text-muted)' }}>Glorify the winners. Clown the losers.</p>
+          <h2 className="primary-heading" style={{ fontSize: '34px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.03em', marginBottom: '2px', color: 'var(--text-primary)' }}>
+            Leaderboards
+          </h2>
+          <p className="secondary-text" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
+            Glorify the winners. Clown the losers.
+          </p>
         </div>
 
         {/* Month Selector Filter */}
@@ -184,29 +188,6 @@ export const Leaderboard: React.FC<{ onViewProfile?: (userId: string) => void }>
         </div>
       </div>
 
-      {/* Monthly Reset Notification Banner */}
-      <div style={{
-        padding: '10px 16px', borderRadius: '12px', marginBottom: '24px',
-        backgroundColor: isCurrentMonthSelected ? 'rgba(169, 14, 2, 0.08)' : 'rgba(59, 130, 246, 0.08)',
-        border: isCurrentMonthSelected ? '1px solid rgba(169, 14, 2, 0.2)' : '1px solid rgba(59, 130, 246, 0.2)',
-        display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: 'var(--text-primary)',
-      }}>
-        {isCurrentMonthSelected ? (
-          <>
-            <History size={16} style={{ color: 'var(--primary)' }} />
-            <span>
-              <strong>Current Month Standings ({formatMonthKey(currentMonthKey)})</strong> — Resets on the 1st of every month. Past months are automatically archived!
-            </span>
-          </>
-        ) : (
-          <>
-            <History size={16} style={{ color: '#3B82F6' }} />
-            <span>
-              <strong>Archived Season Record ({formatMonthKey(selectedMonth)})</strong> — Viewing historical leaderboard statistics.
-            </span>
-          </>
-        )}
-      </div>
 
       {/* Tab Switcher */}
       <div style={{
@@ -281,20 +262,24 @@ export const Leaderboard: React.FC<{ onViewProfile?: (userId: string) => void }>
                 <>
                   <Award size={24} style={{ color: '#EAB308' }} />
                   <div>
-                    <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    <h3 className="primary-heading" style={{ fontSize: '22px', fontWeight: 900, textTransform: 'uppercase', color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
                       Champions Standing ({formatMonthKey(selectedMonth)})
                     </h3>
-                    <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Ranked by total victories and win rate.</p>
+                    <p className="secondary-text" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      Ranked by total victories and win rate.
+                    </p>
                   </div>
                 </>
               ) : (
                 <>
                   <Frown size={24} style={{ color: '#E11D48' }} />
                   <div>
-                    <h3 style={{ fontSize: '18px', fontWeight: 700, color: '#9F1239' }}>
-                      Wall of Shame ({formatMonthKey(selectedMonth)})
+                    <h3 className="primary-heading" style={{ fontSize: '22px', fontWeight: 900, textTransform: 'uppercase', color: '#9F1239', letterSpacing: '-0.02em' }}>
+                      Biggest Losers ({formatMonthKey(selectedMonth)})
                     </h3>
-                    <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Ranked by total defeats.</p>
+                    <p className="secondary-text" style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                      Ranked by total defeats.
+                    </p>
                   </div>
                 </>
               )}

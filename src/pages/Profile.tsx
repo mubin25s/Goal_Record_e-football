@@ -3,7 +3,8 @@ import {
   fetchProfile, fetchUserMatches, updateProfileEfootballId,
   type SBMatch,
 } from '../supabaseClient';
-import { Check, Calendar, Activity, Gamepad2 } from 'lucide-react';
+import { fetchUserTournamentWins } from '../services/tournamentService';
+import { Check, Calendar, Activity, Gamepad2, Star } from 'lucide-react';
 
 interface ProfileProps {
   currentUserId: string;
@@ -41,6 +42,7 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
   const [loading, setLoading]     = useState(true);
   const [updateMsg, setUpdateMsg] = useState('');
   const [matches, setMatches]     = useState<Match[]>([]);
+  const [tournamentStars, setTournamentStars] = useState(0);
 
   const [wins, setWins]               = useState(0);
   const [draws, setDraws]             = useState(0);
@@ -59,11 +61,16 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
           fetchUserMatches(currentUserId),
         ]);
 
+        let profUsername = '';
         if (profile) {
+          profUsername = profile.username || '';
           setUsername(profile.username || '');
           setAvatarUrl(profile.avatar_url || '');
           setEfootballId(profile.efootball_id || '');
         }
+
+        const stars = await fetchUserTournamentWins(currentUserId, profUsername);
+        setTournamentStars(stars);
 
         const allMatches = matchRows.map(toMatch);
         setMatches(allMatches);
@@ -157,15 +164,38 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
           }
         </div>
         <div style={{ flex: 1, minWidth: '200px' }}>
-          <h3 style={{ fontSize: '24px', color: 'var(--text-primary)' }}>{username}</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <h3 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>{username}</h3>
+            {tournamentStars > 0 && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }} title={`${tournamentStars} Tournament Victory Star(s)`}>
+                {Array.from({ length: tournamentStars }).map((_, idx) => (
+                  <Star key={idx} size={22} style={{ color: '#EAB308', fill: '#EAB308', filter: 'drop-shadow(0 2px 4px rgba(234,179,8,0.4))' }} />
+                ))}
+              </div>
+            )}
+          </div>
+
           <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '4px' }}>{userEmail}</p>
           {efootballId && (
             <p style={{ fontSize: '13px', color: 'var(--primary)', fontWeight: 600, marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
               <Gamepad2 size={13} /> eFootball ID: {efootballId}
             </p>
           )}
-          <div style={{ display: 'inline-flex', background: 'rgba(169,14,2,0.08)', padding: '6px 14px', borderRadius: '20px', border: '1px solid rgba(169,14,2,0.2)', fontSize: '13px', fontWeight: 'bold', color: titleColor }}>
-            {userTitle}
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
+            <div style={{ display: 'inline-flex', background: 'rgba(169,14,2,0.08)', padding: '6px 14px', borderRadius: '20px', border: '1px solid rgba(169,14,2,0.2)', fontSize: '13px', fontWeight: 'bold', color: titleColor }}>
+              {userTitle}
+            </div>
+            {tournamentStars > 0 && (
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: '6px',
+                background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(234, 179, 8, 0.08) 100%)',
+                padding: '6px 14px', borderRadius: '20px', border: '1.5px solid #EAB308',
+                fontSize: '13px', fontWeight: 800, color: '#A16207', boxShadow: '0 2px 8px rgba(234, 179, 8, 0.25)'
+              }}>
+                <Star size={14} style={{ fill: '#EAB308', color: '#EAB308' }} /> {tournamentStars}x Tournament Champion ⭐
+              </div>
+            )}
           </div>
         </div>
       </div>

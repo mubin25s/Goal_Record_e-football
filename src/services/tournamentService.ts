@@ -119,6 +119,41 @@ export async function createTournament(
 }
 
 /**
+ * Fetch total tournament wins (stars) for a user
+ */
+export async function fetchUserTournamentWins(userId: string, username?: string): Promise<number> {
+  try {
+    const { data: finalMatches } = await supabase
+      .from('tournament_matches')
+      .select('*')
+      .eq('stage', 'final')
+      .in('status', ['completed', 'locked']);
+
+    let winCount = 0;
+    if (finalMatches) {
+      finalMatches.forEach((m: any) => {
+        if (
+          m.winner_id === userId ||
+          (username && m.winner_id && (
+            (m.player1_id === userId && m.winner_id === m.player1_id) ||
+            (m.player2_id === userId && m.winner_id === m.player2_id) ||
+            (m.player1_name.toLowerCase() === username.toLowerCase() && m.winner_id === m.player1_id) ||
+            (m.player2_name.toLowerCase() === username.toLowerCase() && m.winner_id === m.player2_id)
+          ))
+        ) {
+          winCount++;
+        }
+      });
+    }
+
+    return winCount;
+  } catch (err) {
+    console.error('fetchUserTournamentWins error:', err);
+    return 0;
+  }
+}
+
+/**
  * Fetch all tournaments
  */
 export async function fetchAllTournaments(): Promise<Tournament[]> {
