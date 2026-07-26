@@ -290,7 +290,7 @@ export const TournamentCreateModal: React.FC<Props> = ({ currentUserId, onClose,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontWeight: 700, fontSize: '12px', overflow: 'hidden'
                         }}>
-                          {p.avatar_url ? <img src={p.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : p.username.slice(0, 2).toUpperCase()}
+                          {p.avatar_url ? <img src={p.avatar_url} alt="" referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : p.username.slice(0, 2).toUpperCase()}
                         </div>
                         <span style={{ fontWeight: 600, fontSize: '14px', color: '#1A1A1A' }}>{p.username}</span>
                       </div>

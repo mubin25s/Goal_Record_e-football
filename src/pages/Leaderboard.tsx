@@ -334,7 +334,7 @@ export const Leaderboard: React.FC<{ onViewProfile?: (userId: string) => void }>
                             overflow: 'hidden', flexShrink: 0,
                           }}>
                             {player.avatar_url
-                              ? <img src={player.avatar_url} alt={player.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              ? <img src={player.avatar_url} alt={player.username} referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                               : player.username.substring(0, 2).toUpperCase()
                             }
                           </div>

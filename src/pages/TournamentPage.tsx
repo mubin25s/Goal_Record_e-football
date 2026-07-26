@@ -196,7 +196,7 @@ export const TournamentPage: React.FC<Props> = ({ currentUserId, currentUsername
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                                 fontWeight: 700, fontSize: '10px', overflow: 'hidden'
                               }}>
-                                {s.avatar_url ? <img src={s.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : s.player_name.slice(0, 2).toUpperCase()}
+                                {s.avatar_url ? <img src={s.avatar_url} alt="" referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : s.player_name.slice(0, 2).toUpperCase()}
                               </div>
                               <span style={{ color: 'var(--text-primary)' }}>{s.player_name}</span>
                             </div>

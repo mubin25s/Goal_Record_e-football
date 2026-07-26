@@ -118,38 +118,72 @@ export async function createTournament(
   return tournamentId;
 }
 
+export interface StarData {
+  fullStars: number;
+  totalPoints: number;
+  progressPct: number;
+  winsCount: number;
+}
+
 /**
- * Fetch total tournament wins (stars) for a user
+ * Fetch total tournament wins & star progress for a user
+ * 3-player tournament win = 0.20 star (5 wins = 1 star / 20% per win)
+ * 4-player tournament win = 0.25 star (4 wins = 1 star / 25% per win)
+ * 5-player tournament win = 0.333 star (3 wins = 1 star / 33.33% per win)
+ * Rest (6+ players) = 1.0 star per win (100% per win)
  */
-export async function fetchUserTournamentWins(userId: string, username?: string): Promise<number> {
+export async function fetchUserTournamentWins(userId: string, username?: string): Promise<StarData> {
   try {
     const { data: finalMatches } = await supabase
       .from('tournament_matches')
-      .select('*')
+      .select('*, tournaments(player_count)')
       .eq('stage', 'final')
       .in('status', ['completed', 'locked']);
 
-    let winCount = 0;
+    let starPoints = 0;
+    let winsCount = 0;
+
     if (finalMatches) {
       finalMatches.forEach((m: any) => {
-        if (
+        const isWinner =
           m.winner_id === userId ||
           (username && m.winner_id && (
             (m.player1_id === userId && m.winner_id === m.player1_id) ||
             (m.player2_id === userId && m.winner_id === m.player2_id) ||
             (m.player1_name.toLowerCase() === username.toLowerCase() && m.winner_id === m.player1_id) ||
             (m.player2_name.toLowerCase() === username.toLowerCase() && m.winner_id === m.player2_id)
-          ))
-        ) {
-          winCount++;
+          ));
+
+        if (isWinner) {
+          winsCount++;
+          const count = m.tournaments?.player_count || 8;
+          if (count === 3) {
+            starPoints += 0.20;
+          } else if (count === 4) {
+            starPoints += 0.25;
+          } else if (count === 5) {
+            starPoints += (1 / 3);
+          } else {
+            starPoints += 1.0;
+          }
         }
       });
     }
 
-    return winCount;
+    starPoints = Math.round(starPoints * 1000) / 1000;
+    const fullStars = Math.floor(starPoints + 0.0001);
+    const partial = starPoints - fullStars;
+    const progressPct = Math.min(99, Math.round(partial * 100));
+
+    return {
+      fullStars,
+      totalPoints: starPoints,
+      progressPct: fullStars > 0 && progressPct === 0 ? 0 : progressPct,
+      winsCount,
+    };
   } catch (err) {
     console.error('fetchUserTournamentWins error:', err);
-    return 0;
+    return { fullStars: 0, totalPoints: 0, progressPct: 0, winsCount: 0 };
   }
 }
 

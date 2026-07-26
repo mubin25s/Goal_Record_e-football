@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { fetchUserMatches, fetchAllProfiles, type SBMatch, type SBProfile } from '../supabaseClient';
-import { fetchUserTournamentWins } from '../services/tournamentService';
-import { Calendar, Activity, Trophy, X, ChevronLeft, Gamepad2, Star } from 'lucide-react';
+import { fetchUserTournamentWins, type StarData } from '../services/tournamentService';
+import { TournamentStarsBadge } from '../components/TournamentStarsBadge';
+import { Calendar, Activity, Trophy, X, ChevronLeft, Gamepad2 } from 'lucide-react';
 
 interface ViewProfileProps {
   userId: string;
@@ -21,7 +22,7 @@ interface Match {
 export const ViewProfile: React.FC<ViewProfileProps> = ({ userId, onBack }) => {
   const [profile, setProfile] = useState<SBProfile | null>(null);
   const [matches, setMatches] = useState<Match[]>([]);
-  const [tournamentStars, setTournamentStars] = useState(0);
+  const [tournamentStars, setTournamentStars] = useState<StarData>({ fullStars: 0, totalPoints: 0, progressPct: 0, winsCount: 0 });
   const [loading, setLoading]  = useState(true);
 
   useEffect(() => {
@@ -103,20 +104,13 @@ export const ViewProfile: React.FC<ViewProfileProps> = ({ userId, onBack }) => {
       <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap', background: 'linear-gradient(135deg, rgba(169,14,2,0.05) 0%, rgba(169,14,2,0.01) 100%)', border: '1.5px solid rgba(169,14,2,0.15)' }}>
         <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '28px', border: '2px solid rgba(169,14,2,0.3)', overflow: 'hidden', boxShadow: '0 0 15px rgba(169,14,2,0.2)' }}>
           {profile.avatar_url
-            ? <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ? <img src={profile.avatar_url} alt="" referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : profile.username.substring(0, 2).toUpperCase()
           }
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
             <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>{profile.username}</h2>
-            {tournamentStars > 0 && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }} title={`${tournamentStars} Tournament Victory Star(s)`}>
-                {Array.from({ length: tournamentStars }).map((_, idx) => (
-                  <Star key={idx} size={22} style={{ color: '#EAB308', fill: '#EAB308', filter: 'drop-shadow(0 2px 4px rgba(234,179,8,0.4))' }} />
-                ))}
-              </div>
-            )}
           </div>
 
           {profile.efootball_id && (
@@ -125,20 +119,11 @@ export const ViewProfile: React.FC<ViewProfileProps> = ({ userId, onBack }) => {
             </p>
           )}
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '8px', alignItems: 'center' }}>
             <div style={{ display: 'inline-flex', background: 'rgba(169,14,2,0.08)', padding: '5px 14px', borderRadius: '20px', border: '1px solid rgba(169,14,2,0.15)', fontSize: '13px', fontWeight: 'bold', color: titleColor }}>
               {title}
             </div>
-            {tournamentStars > 0 && (
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: '6px',
-                background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(234, 179, 8, 0.08) 100%)',
-                padding: '5px 14px', borderRadius: '20px', border: '1.5px solid #EAB308',
-                fontSize: '13px', fontWeight: 800, color: '#A16207', boxShadow: '0 2px 8px rgba(234, 179, 8, 0.25)'
-              }}>
-                <Star size={14} style={{ fill: '#EAB308', color: '#EAB308' }} /> {tournamentStars}x Tournament Champion ⭐
-              </div>
-            )}
+            <TournamentStarsBadge starData={tournamentStars} />
           </div>
         </div>
       </div>
@@ -271,7 +256,7 @@ export const PlayerSearch: React.FC<PlayerSearchProps> = ({ onClose, onSelectUse
               >
                 <div style={{ width: '38px', height: '38px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '14px', flexShrink: 0, overflow: 'hidden' }}>
                   {p.avatar_url
-                    ? <img src={p.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ? <img src={p.avatar_url} alt="" referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     : p.username.substring(0, 2).toUpperCase()
                   }
                 </div>

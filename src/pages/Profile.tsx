@@ -3,8 +3,9 @@ import {
   fetchProfile, fetchUserMatches, updateProfileEfootballId,
   type SBMatch,
 } from '../supabaseClient';
-import { fetchUserTournamentWins } from '../services/tournamentService';
-import { Check, Calendar, Activity, Gamepad2, Star } from 'lucide-react';
+import { fetchUserTournamentWins, type StarData } from '../services/tournamentService';
+import { TournamentStarsBadge } from '../components/TournamentStarsBadge';
+import { Check, Calendar, Activity, Gamepad2 } from 'lucide-react';
 
 interface ProfileProps {
   currentUserId: string;
@@ -42,7 +43,7 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
   const [loading, setLoading]     = useState(true);
   const [updateMsg, setUpdateMsg] = useState('');
   const [matches, setMatches]     = useState<Match[]>([]);
-  const [tournamentStars, setTournamentStars] = useState(0);
+  const [tournamentStars, setTournamentStars] = useState<StarData>({ fullStars: 0, totalPoints: 0, progressPct: 0, winsCount: 0 });
 
   const [wins, setWins]               = useState(0);
   const [draws, setDraws]             = useState(0);
@@ -159,20 +160,13 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
       <div className="card" style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap', background: 'linear-gradient(135deg, rgba(169, 14, 2, 0.06) 0%, rgba(169, 14, 2, 0.02) 100%)', border: '1.5px solid rgba(169,14,2,0.15)' }}>
         <div style={{ width: '80px', height: '80px', borderRadius: '50%', backgroundColor: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '28px', border: '2px solid rgba(169,14,2,0.3)', overflow: 'hidden', boxShadow: '0 0 15px rgba(169, 14, 2, 0.2)' }}>
           {avatarUrl
-            ? <img src={avatarUrl} alt={username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ? <img src={avatarUrl} alt={username} referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             : username.substring(0, 2).toUpperCase()
           }
         </div>
         <div style={{ flex: 1, minWidth: '200px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
             <h3 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>{username}</h3>
-            {tournamentStars > 0 && (
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }} title={`${tournamentStars} Tournament Victory Star(s)`}>
-                {Array.from({ length: tournamentStars }).map((_, idx) => (
-                  <Star key={idx} size={22} style={{ color: '#EAB308', fill: '#EAB308', filter: 'drop-shadow(0 2px 4px rgba(234,179,8,0.4))' }} />
-                ))}
-              </div>
-            )}
           </div>
 
           <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '4px' }}>{userEmail}</p>
@@ -182,20 +176,11 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
             </p>
           )}
 
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '6px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '8px', alignItems: 'center' }}>
             <div style={{ display: 'inline-flex', background: 'rgba(169,14,2,0.08)', padding: '6px 14px', borderRadius: '20px', border: '1px solid rgba(169,14,2,0.2)', fontSize: '13px', fontWeight: 'bold', color: titleColor }}>
               {userTitle}
             </div>
-            {tournamentStars > 0 && (
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: '6px',
-                background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.2) 0%, rgba(234, 179, 8, 0.08) 100%)',
-                padding: '6px 14px', borderRadius: '20px', border: '1.5px solid #EAB308',
-                fontSize: '13px', fontWeight: 800, color: '#A16207', boxShadow: '0 2px 8px rgba(234, 179, 8, 0.25)'
-              }}>
-                <Star size={14} style={{ fill: '#EAB308', color: '#EAB308' }} /> {tournamentStars}x Tournament Champion ⭐
-              </div>
-            )}
+            <TournamentStarsBadge starData={tournamentStars} />
           </div>
         </div>
       </div>

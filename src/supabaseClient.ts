@@ -150,7 +150,10 @@ export const fetchAllMatches = async (): Promise<SBMatch[]> => {
     .from('matches')
     .select('*')
     .order('created_at', { ascending: false });
-  if (error) return [];
+  if (error) {
+    console.error('Error fetching matches from Supabase:', error);
+    return [];
+  }
   return (data as SBMatch[]) ?? [];
 };
 

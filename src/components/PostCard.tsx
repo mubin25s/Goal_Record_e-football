@@ -47,7 +47,7 @@ const Avatar: React.FC<{ name: string; avatarUrl?: string | null; size?: number 
     overflow: 'hidden'
   }}>
     {avatarUrl ? (
-      <img src={avatarUrl} alt={name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      <img src={avatarUrl} alt={name} referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
     ) : (
       name.substring(0, 2).toUpperCase()
     )}
