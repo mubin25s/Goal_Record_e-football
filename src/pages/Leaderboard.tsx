@@ -6,6 +6,7 @@ import { HeadToHead } from '../components/HeadToHead';
 interface PlayerStats {
   id: string;
   username: string;
+  avatar_url: string | null;
   wins: number;
   draws: number;
   losses: number;
@@ -97,7 +98,7 @@ export const Leaderboard: React.FC<{ onViewProfile?: (userId: string) => void }>
 
   const statsMap: { [id: string]: PlayerStats } = {};
   profiles.forEach(p => {
-    statsMap[p.id] = { id: p.id, username: p.username, wins: 0, draws: 0, losses: 0, totalPlayed: 0, winRate: 0, goalsScored: 0, goalsConceded: 0 };
+    statsMap[p.id] = { id: p.id, username: p.username, avatar_url: p.avatar_url ?? null, wins: 0, draws: 0, losses: 0, totalPlayed: 0, winRate: 0, goalsScored: 0, goalsConceded: 0 };
   });
 
   filteredMatches.forEach(m => {
@@ -329,9 +330,13 @@ export const Leaderboard: React.FC<{ onViewProfile?: (userId: string) => void }>
                             width: '32px', height: '32px', borderRadius: '50%',
                             backgroundColor: 'var(--primary)', color: '#FFFFFF',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontWeight: 700, fontSize: '12px', border: isTop ? '1.5px solid var(--primary)' : '1px solid var(--border-color)'
+                            fontWeight: 700, fontSize: '12px', border: isTop ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
+                            overflow: 'hidden', flexShrink: 0,
                           }}>
-                            {player.username.substring(0, 2).toUpperCase()}
+                            {player.avatar_url
+                              ? <img src={player.avatar_url} alt={player.username} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                              : player.username.substring(0, 2).toUpperCase()
+                            }
                           </div>
                           <div>
                             <span
