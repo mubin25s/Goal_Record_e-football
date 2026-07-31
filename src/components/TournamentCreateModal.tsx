@@ -14,6 +14,7 @@ export const TournamentCreateModal: React.FC<Props> = ({ currentUserId, onClose,
   const [step, setStep] = useState<1 | 2>(1);
   const [title, setTitle] = useState('');
   const [selectedCount, setSelectedCount] = useState<number>(8); // Default 8
+  const [matchFormat, setMatchFormat] = useState<'single' | 'home_away'>('single');
 
   // Registered profiles from DB
   const [profiles, setProfiles] = useState<SBProfile[]>([]);
@@ -117,7 +118,7 @@ export const TournamentCreateModal: React.FC<Props> = ({ currentUserId, onClose,
         });
       });
 
-      const tournamentId = await createTournament(title.trim(), selectedCount, fullPlayers, currentUserId);
+      const tournamentId = await createTournament(title.trim(), selectedCount, fullPlayers, currentUserId, matchFormat);
       onSuccess(tournamentId);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to create tournament');
@@ -194,7 +195,7 @@ export const TournamentCreateModal: React.FC<Props> = ({ currentUserId, onClose,
             </div>
 
             {/* Select Player Count */}
-            <div style={{ marginBottom: '24px' }}>
+            <div style={{ marginBottom: '20px' }}>
               <label style={{ fontSize: '13px', fontWeight: 600, color: '#333333', marginBottom: '10px', display: 'block' }}>
                 Select Number of Players (Allowed Counts Only)
               </label>
@@ -229,6 +230,58 @@ export const TournamentCreateModal: React.FC<Props> = ({ currentUserId, onClose,
                     </button>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Match Format Option */}
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#333333', marginBottom: '10px', display: 'block' }}>
+                Select Match Format
+              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setMatchFormat('single')}
+                  style={{
+                    padding: '12px 10px',
+                    borderRadius: '12px',
+                    border: matchFormat === 'single' ? '2px solid var(--primary)' : '1px solid rgba(0,0,0,0.12)',
+                    backgroundColor: matchFormat === 'single' ? 'rgba(169, 14, 2, 0.08)' : '#F8F9FA',
+                    color: '#1A1A1A',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '4px', color: matchFormat === 'single' ? 'var(--primary)' : '#1A1A1A' }}>
+                    ⚽ Single Match
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#666666', lineHeight: 1.3 }}>
+                    1 match per fixture for group and knockout stages.
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMatchFormat('home_away')}
+                  style={{
+                    padding: '12px 10px',
+                    borderRadius: '12px',
+                    border: matchFormat === 'home_away' ? '2px solid var(--primary)' : '1px solid rgba(0,0,0,0.12)',
+                    backgroundColor: matchFormat === 'home_away' ? 'rgba(169, 14, 2, 0.08)' : '#F8F9FA',
+                    color: '#1A1A1A',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: '14px', marginBottom: '4px', color: matchFormat === 'home_away' ? 'var(--primary)' : '#1A1A1A' }}>
+                    🔄 Home & Away
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#666666', lineHeight: 1.3 }}>
+                    {selectedCount <= 5 ? '2 matches per fixture in group & knockout stages. Final is 1 match.' : 'Group stage: 1 match per fixture. Knockout stage: 2 legs (Home/Away). Final is 1 match.'}
+                  </div>
+                </button>
               </div>
             </div>
 

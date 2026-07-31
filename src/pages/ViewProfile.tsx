@@ -109,8 +109,9 @@ export const ViewProfile: React.FC<ViewProfileProps> = ({ userId, onBack }) => {
           }
         </div>
         <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
             <h2 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>{profile.username}</h2>
+            <TournamentStarsBadge starData={tournamentStars} compact={true} />
           </div>
 
           {profile.efootball_id && (
@@ -123,7 +124,6 @@ export const ViewProfile: React.FC<ViewProfileProps> = ({ userId, onBack }) => {
             <div style={{ display: 'inline-flex', background: 'rgba(169,14,2,0.08)', padding: '5px 14px', borderRadius: '20px', border: '1px solid rgba(169,14,2,0.15)', fontSize: '13px', fontWeight: 'bold', color: titleColor }}>
               {title}
             </div>
-            <TournamentStarsBadge starData={tournamentStars} />
           </div>
         </div>
       </div>

@@ -11,6 +11,7 @@ export interface Tournament {
   id: string;
   title: string;
   player_count: number;
+  match_format?: 'single' | 'home_away';
   status: 'group_stage' | 'knockout_stage' | 'completed';
   created_by: string;
   created_at: string;
@@ -32,6 +33,7 @@ export interface TournamentMatch {
   stage: 'group' | 'round_of_16' | 'quarter_final' | 'semi_final' | 'final';
   group_letter?: string | null;
   match_number: number;
+  leg?: number | null;
   player1_id: string;
   player1_name: string;
   player2_id: string;
@@ -52,19 +54,36 @@ export async function createTournament(
   title: string,
   playerCount: number,
   selectedPlayers: { id: string; name: string; avatar_url?: string }[],
-  createdByUid: string
+  createdByUid: string,
+  matchFormat: 'single' | 'home_away' = 'single'
 ): Promise<string> {
-  // 1. Insert Tournament Row
-  const { data: tourney, error: tErr } = await supabase
+  // 1. Insert Tournament Row with match_format (and fallback if schema missing match_format)
+  let { data: tourney, error: tErr } = await supabase
     .from('tournaments')
     .insert({
       title,
       player_count: playerCount,
+      match_format: matchFormat,
       status: 'group_stage',
       created_by: createdByUid,
     })
     .select()
     .single();
+
+  if (tErr && tErr.message?.includes('match_format')) {
+    const fallbackRes = await supabase
+      .from('tournaments')
+      .insert({
+        title,
+        player_count: playerCount,
+        status: 'group_stage',
+        created_by: createdByUid,
+      })
+      .select()
+      .single();
+    tourney = fallbackRes.data;
+    tErr = fallbackRes.error;
+  }
 
   if (tErr || !tourney) {
     throw new Error(tErr?.message || 'Failed to create tournament');
@@ -91,13 +110,17 @@ export async function createTournament(
       });
     });
 
-    const fixtures = generateRoundRobinFixtures(groupList, groupLetter);
+    // For Single Group (<=5 players), matchFormat applies to group stage.
+    // For Multi-Group (>5 players), group stage is always single match, and Home & Away starts from knockout stage.
+    const groupMatchFormat = playerCount <= 5 ? matchFormat : 'single';
+    const fixtures = generateRoundRobinFixtures(groupList, groupLetter, groupMatchFormat);
     fixtures.forEach(f => {
       allFixtures.push({
         tournament_id: tournamentId,
         stage: f.stage,
         group_letter: f.group_letter,
         match_number: f.match_number,
+        leg: f.leg || 1,
         player1_id: f.player1_id,
         player1_name: f.player1_name,
         player2_id: f.player2_id,
@@ -111,8 +134,14 @@ export async function createTournament(
   const { error: pErr } = await supabase.from('tournament_players').insert(playerInserts);
   if (pErr) throw new Error(`Failed to save players: ${pErr.message}`);
 
-  // 4. Insert Fixtures
-  const { error: mErr } = await supabase.from('tournament_matches').insert(allFixtures);
+  // 4. Insert Fixtures (with fallback if leg column missing)
+  let { error: mErr } = await supabase.from('tournament_matches').insert(allFixtures);
+  if (mErr && mErr.message?.includes('leg')) {
+    const cleanFixtures = allFixtures.map(({ leg, ...rest }) => rest);
+    const retryRes = await supabase.from('tournament_matches').insert(cleanFixtures);
+    mErr = retryRes.error;
+  }
+
   if (mErr) throw new Error(`Failed to save fixtures: ${mErr.message}`);
 
   return tournamentId;
@@ -299,6 +328,7 @@ export async function checkAndAdvanceTournamentStage(tournamentId: string): Prom
     stage: m.stage,
     group_letter: m.group_letter || undefined,
     match_number: m.match_number,
+    leg: m.leg || 1,
     player1_id: m.player1_id,
     player1_name: m.player1_name,
     player2_id: m.player2_id,
@@ -308,6 +338,8 @@ export async function checkAndAdvanceTournamentStage(tournamentId: string): Prom
     status: m.status,
     winner_id: m.winner_id,
   }));
+
+  const matchFormat = tournament.match_format || 'single';
 
   // 1. If in group_stage, check if all group matches are done
   if (tournament.status === 'group_stage') {
@@ -324,7 +356,7 @@ export async function checkAndAdvanceTournamentStage(tournamentId: string): Prom
       });
 
       // Generate Knockout Stage Fixtures!
-      const knockoutFixtures = generateKnockoutFixtures(tournament.player_count, standingsByGroup);
+      const knockoutFixtures = generateKnockoutFixtures(tournament.player_count, standingsByGroup, matchFormat);
 
       if (knockoutFixtures.length > 0) {
         const knockoutInserts = knockoutFixtures.map(f => ({
@@ -332,6 +364,7 @@ export async function checkAndAdvanceTournamentStage(tournamentId: string): Prom
           stage: f.stage,
           group_letter: null,
           match_number: f.match_number,
+          leg: f.leg || 1,
           player1_id: f.player1_id,
           player1_name: f.player1_name,
           player2_id: f.player2_id,
@@ -339,7 +372,11 @@ export async function checkAndAdvanceTournamentStage(tournamentId: string): Prom
           status: 'pending',
         }));
 
-        await supabase.from('tournament_matches').insert(knockoutInserts);
+        let { error: kErr } = await supabase.from('tournament_matches').insert(knockoutInserts);
+        if (kErr && kErr.message?.includes('leg')) {
+          const cleanKnockout = knockoutInserts.map(({ leg, ...rest }: any) => rest);
+          await supabase.from('tournament_matches').insert(cleanKnockout);
+        }
       }
 
       // Update tournament status to knockout_stage
@@ -367,38 +404,110 @@ export async function checkAndAdvanceTournamentStage(tournamentId: string): Prom
       const currentStageMatches = knockoutMatches.filter(m => m.stage === currentStage);
       const nextStageMatches = knockoutMatches.filter(m => m.stage === nextStage);
 
-      if (
-        currentStageMatches.length > 0 &&
-        currentStageMatches.every(m => (m.status === 'completed' || m.status === 'locked') && m.winner_id) &&
-        nextStageMatches.length === 0
-      ) {
-        // Build next stage pairings from winners of current stage
-        const winners = currentStageMatches.map(m => {
-          const wId = m.winner_id!;
-          const wName = wId === m.player1_id ? m.player1_name : m.player2_name;
-          return { id: wId, name: wName };
+      if (currentStageMatches.length > 0 && nextStageMatches.length === 0) {
+        const allCurrentDone = currentStageMatches.every(m => m.status === 'completed' || m.status === 'locked');
+        if (!allCurrentDone) continue;
+
+        // Group current stage matches by match_number
+        const matchesByNumber: { [num: number]: Match[] } = {};
+        currentStageMatches.forEach(m => {
+          if (!matchesByNumber[m.match_number]) matchesByNumber[m.match_number] = [];
+          matchesByNumber[m.match_number].push(m);
         });
+
+        const winners: { id: string; name: string }[] = [];
+        const sortedMatchNumbers = Object.keys(matchesByNumber).map(Number).sort((a, b) => a - b);
+
+        for (const num of sortedMatchNumbers) {
+          const tieMatches = matchesByNumber[num];
+          if (tieMatches.length === 1 || currentStage === 'final' || matchFormat !== 'home_away') {
+            const m = tieMatches[0];
+            if (m.winner_id) {
+              const wName = m.winner_id === m.player1_id ? m.player1_name : m.player2_name;
+              winners.push({ id: m.winner_id, name: wName });
+            }
+          } else if (tieMatches.length === 2) {
+            // 2-leg tie aggregate calculation
+            const leg1 = tieMatches.find(m => m.leg === 1) || tieMatches[0];
+            const leg2 = tieMatches.find(m => m.leg === 2) || tieMatches[1];
+
+            const p1Id = leg1.player1_id;
+            const p1Name = leg1.player1_name;
+            const p2Id = leg1.player2_id;
+            const p2Name = leg1.player2_name;
+
+            // Leg 1: p1 vs p2
+            const l1_p1 = leg1.player1_score ?? 0;
+            const l1_p2 = leg1.player2_score ?? 0;
+
+            // Leg 2: player1 is P2, player2 is P1
+            const l2_p2 = leg2.player1_score ?? 0;
+            const l2_p1 = leg2.player2_score ?? 0;
+
+            const p1Agg = l1_p1 + l2_p1;
+            const p2Agg = l1_p2 + l2_p2;
+
+            let tieWinnerId: string;
+            let tieWinnerName: string;
+
+            if (p1Agg > p2Agg) {
+              tieWinnerId = p1Id;
+              tieWinnerName = p1Name;
+            } else if (p2Agg > p1Agg) {
+              tieWinnerId = p2Id;
+              tieWinnerName = p2Name;
+            } else {
+              // Tiebreaker fallback: Leg 2 winner or Leg 1 winner
+              tieWinnerId = leg2.winner_id || leg1.winner_id || p1Id;
+              tieWinnerName = tieWinnerId === p1Id ? p1Name : p2Name;
+            }
+
+            winners.push({ id: tieWinnerId, name: tieWinnerName });
+          }
+        }
 
         const nextInserts: any[] = [];
 
         if (currentStage === 'quarter_final' && tournament.player_count === 10) {
           // Special 10 players rule: 3 QF winners.
-          // QF1 winner (A1/B3) vs QF3 winner (A3/B2) -> SF
-          // QF2 winner (A2/B1) -> Bye to Final or SF
           if (winners.length >= 3) {
-            nextInserts.push({
-              tournament_id: tournamentId,
-              stage: 'semi_final',
-              match_number: 1,
-              player1_id: winners[0].id, player1_name: winners[0].name,
-              player2_id: winners[2].id, player2_name: winners[2].name,
-              status: 'pending',
-            });
+            if (nextStage === 'final' || matchFormat !== 'home_away') {
+              nextInserts.push({
+                tournament_id: tournamentId,
+                stage: 'semi_final',
+                match_number: 1,
+                leg: 1,
+                player1_id: winners[0].id, player1_name: winners[0].name,
+                player2_id: winners[2].id, player2_name: winners[2].name,
+                status: 'pending',
+              });
+            } else {
+              nextInserts.push({
+                tournament_id: tournamentId,
+                stage: 'semi_final',
+                match_number: 1,
+                leg: 1,
+                player1_id: winners[0].id, player1_name: winners[0].name,
+                player2_id: winners[2].id, player2_name: winners[2].name,
+                status: 'pending',
+              });
+              nextInserts.push({
+                tournament_id: tournamentId,
+                stage: 'semi_final',
+                match_number: 1,
+                leg: 2,
+                player1_id: winners[2].id, player1_name: winners[2].name,
+                player2_id: winners[0].id, player2_name: winners[0].name,
+                status: 'pending',
+              });
+            }
+
             // Auto place QF2 winner into Final slot or Bye SF
             nextInserts.push({
               tournament_id: tournamentId,
               stage: 'semi_final',
               match_number: 2,
+              leg: 1,
               player1_id: winners[1].id, player1_name: winners[1].name,
               player2_id: winners[1].id, player2_name: winners[1].name + ' (Bye)',
               player1_score: 1, player2_score: 0,
@@ -410,20 +519,49 @@ export async function checkAndAdvanceTournamentStage(tournamentId: string): Prom
           // Standard pairs: Match 1 vs Match 2, Match 3 vs Match 4
           for (let k = 0; k < winners.length; k += 2) {
             if (winners[k] && winners[k + 1]) {
-              nextInserts.push({
-                tournament_id: tournamentId,
-                stage: nextStage,
-                match_number: Math.floor(k / 2) + 1,
-                player1_id: winners[k].id, player1_name: winners[k].name,
-                player2_id: winners[k + 1].id, player2_name: winners[k + 1].name,
-                status: 'pending',
-              });
+              const mNum = Math.floor(k / 2) + 1;
+              if (nextStage === 'final' || matchFormat !== 'home_away') {
+                // Grand Final is ALWAYS 1 single match!
+                nextInserts.push({
+                  tournament_id: tournamentId,
+                  stage: nextStage,
+                  match_number: mNum,
+                  leg: 1,
+                  player1_id: winners[k].id, player1_name: winners[k].name,
+                  player2_id: winners[k + 1].id, player2_name: winners[k + 1].name,
+                  status: 'pending',
+                });
+              } else {
+                // Home & Away 2-leg knockout round
+                nextInserts.push({
+                  tournament_id: tournamentId,
+                  stage: nextStage,
+                  match_number: mNum,
+                  leg: 1,
+                  player1_id: winners[k].id, player1_name: winners[k].name,
+                  player2_id: winners[k + 1].id, player2_name: winners[k + 1].name,
+                  status: 'pending',
+                });
+                nextInserts.push({
+                  tournament_id: tournamentId,
+                  stage: nextStage,
+                  match_number: mNum,
+                  leg: 2,
+                  player1_id: winners[k + 1].id, player1_name: winners[k + 1].name,
+                  player2_id: winners[k].id, player2_name: winners[k].name,
+                  status: 'pending',
+                });
+              }
             }
           }
         }
 
         if (nextInserts.length > 0) {
-          await supabase.from('tournament_matches').insert(nextInserts);
+          let { error: nErr } = await supabase.from('tournament_matches').insert(nextInserts);
+          if (nErr && nErr.message?.includes('leg')) {
+            const cleanNext = nextInserts.map(({ leg, ...rest }: any) => rest);
+            await supabase.from('tournament_matches').insert(cleanNext);
+          }
         }
       }
     }

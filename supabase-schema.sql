@@ -73,6 +73,7 @@ CREATE TABLE IF NOT EXISTS public.tournaments (
     id            UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
     title         TEXT        NOT NULL,
     player_count  INTEGER     NOT NULL CHECK (player_count IN (3, 4, 5, 8, 10, 12, 16, 32)),
+    match_format  TEXT        NOT NULL DEFAULT 'single', -- 'single' or 'home_away'
     status        TEXT        NOT NULL DEFAULT 'group_stage', -- 'group_stage', 'knockout_stage', 'completed'
     created_by    TEXT        NOT NULL,  -- Firebase UID of Admin
     created_at    TIMESTAMPTZ DEFAULT NOW() NOT NULL
@@ -96,6 +97,7 @@ CREATE TABLE IF NOT EXISTS public.tournament_matches (
     stage           TEXT        NOT NULL,  -- 'group', 'round_of_16', 'quarter_final', 'semi_final', 'final'
     group_letter    TEXT,                  -- 'A', 'B', etc. for group stage
     match_number    INTEGER     NOT NULL,
+    leg             INTEGER     DEFAULT 1, -- 1 or 2
     player1_id      TEXT        NOT NULL,
     player1_name    TEXT        NOT NULL,
     player2_id      TEXT        NOT NULL,

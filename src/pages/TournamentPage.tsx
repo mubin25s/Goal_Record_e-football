@@ -33,7 +33,7 @@ export const TournamentPage: React.FC<Props> = ({ currentUserId, currentUsername
   const [activeTab, setActiveTab] = useState<'standings' | 'matches' | 'bracket'>('standings');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [uploadingMatch, setUploadingMatch] = useState<TournamentMatch | null>(null);
-  const [stageFilter, setStageFilter] = useState<string>('all');
+
 
   const isAdmin = currentUserId !== null; // Authenticated users can create/administer tournaments
 
@@ -247,154 +247,181 @@ export const TournamentPage: React.FC<Props> = ({ currentUserId, currentUsername
     );
   };
 
-  const renderMatchesList = () => {
-    let filtered = matches;
-    if (stageFilter !== 'all') {
-      filtered = matches.filter(m => m.stage === stageFilter || m.group_letter === stageFilter);
-    }
+  const renderMatchCard = (m: TournamentMatch) => {
+    const isDone = m.status === 'completed' || m.status === 'locked';
+    const canSubmit = currentUserId && (
+      currentUserId === m.player1_id ||
+      currentUserId === m.player2_id ||
+      activeTournament?.created_by === currentUserId
+    );
 
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {/* Stage Filter */}
-        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px' }}>
-          <button
-            onClick={() => setStageFilter('all')}
-            className={`btn ${stageFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '6px 12px', fontSize: '12px' }}
-          >
-            All Matches ({matches.length})
-          </button>
-          <button
-            onClick={() => setStageFilter('group')}
-            className={`btn ${stageFilter === 'group' ? 'btn-primary' : 'btn-secondary'}`}
-            style={{ padding: '6px 12px', fontSize: '12px' }}
-          >
-            Group Stage
-          </button>
-          {matches.some(m => m.stage === 'quarter_final') && (
-            <button
-              onClick={() => setStageFilter('quarter_final')}
-              className={`btn ${stageFilter === 'quarter_final' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ padding: '6px 12px', fontSize: '12px' }}
-            >
-              Quarter-finals
-            </button>
-          )}
-          {matches.some(m => m.stage === 'semi_final') && (
-            <button
-              onClick={() => setStageFilter('semi_final')}
-              className={`btn ${stageFilter === 'semi_final' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ padding: '6px 12px', fontSize: '12px' }}
-            >
-              Semi-finals
-            </button>
-          )}
-          {matches.some(m => m.stage === 'final') && (
-            <button
-              onClick={() => setStageFilter('final')}
-              className={`btn ${stageFilter === 'final' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ padding: '6px 12px', fontSize: '12px' }}
-            >
-              Final
-            </button>
+      <div
+        key={m.id}
+        className="card"
+        style={{
+          padding: '14px',
+          border: isDone ? '1px solid rgba(234, 179, 8, 0.3)' : '1px solid var(--border-color)',
+          display: 'flex', flexDirection: 'column', gap: '10px',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <span style={{
+              fontSize: '11px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px',
+              backgroundColor: 'rgba(255, 255, 255, 0.08)', color: 'var(--text-primary)',
+            }}>
+              {m.stage === 'group' ? `Group ${m.group_letter || 'A'}` : m.stage.replace(/_/g, ' ').toUpperCase()}
+            </span>
+
+            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>
+              Match #{m.match_number}
+            </span>
+
+            {activeTournament?.match_format === 'home_away' && m.stage !== 'final' && (
+              (m.stage === 'group' && activeTournament.player_count > 5) ? null : (
+                <span style={{
+                  fontSize: '11px', fontWeight: 800, padding: '3px 9px', borderRadius: '12px',
+                  backgroundColor: (m.leg || 1) === 1 ? 'rgba(59, 130, 246, 0.2)' : 'rgba(168, 85, 247, 0.2)',
+                  color: (m.leg || 1) === 1 ? '#60a5fa' : '#c084fc',
+                  border: (m.leg || 1) === 1 ? '1px solid rgba(96, 165, 250, 0.4)' : '1px solid rgba(192, 132, 252, 0.4)',
+                  display: 'inline-flex', alignItems: 'center', gap: '4px',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+                }}>
+                  {(m.leg || 1) === 1 ? 'Leg 1 (Home)' : 'Leg 2 (Away)'}
+                </span>
+              )
+            )}
+          </div>
+
+          {isDone ? (
+            <span style={{
+              fontSize: '11px', color: 'var(--primary)', fontWeight: 700,
+              display: 'inline-flex', alignItems: 'center', gap: '4px',
+              backgroundColor: 'rgba(234, 179, 8, 0.15)', padding: '3px 8px', borderRadius: '6px',
+              border: '1px solid rgba(234, 179, 8, 0.3)'
+            }}>
+              <Lock size={12} /> Locked
+            </span>
+          ) : (
+            <span style={{
+              fontSize: '11px', color: '#facc15', fontWeight: 700,
+              backgroundColor: 'rgba(250, 204, 21, 0.12)', padding: '3px 8px', borderRadius: '6px',
+              border: '1px solid rgba(250, 204, 21, 0.25)'
+            }}>
+              Pending
+            </span>
           )}
         </div>
 
-        {filtered.length === 0 ? (
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
-            No matches found for selected stage filter.
-          </p>
-        ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
-            {filtered.map(m => {
-              const isDone = m.status === 'completed' || m.status === 'locked';
-              const canSubmit = currentUserId && (
-                currentUserId === m.player1_id ||
-                currentUserId === m.player2_id ||
-                activeTournament?.created_by === currentUserId
-              );
-
-              return (
-                <div
-                  key={m.id}
-                  className="card"
-                  style={{
-                    padding: '14px',
-                    border: isDone ? '1px solid rgba(234, 179, 8, 0.3)' : '1px solid var(--border-color)',
-                    display: 'flex', flexDirection: 'column', gap: '10px',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
-                    <span>
-                      {m.stage === 'group' ? `Group ${m.group_letter || 'A'}` : m.stage.replace('_', ' ').toUpperCase()} • Match #{m.match_number}
-                    </span>
-                    {isDone ? (
-                      <span style={{ color: 'var(--primary)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <Lock size={12} /> Locked
-                      </span>
-                    ) : (
-                      <span style={{ color: '#facc15' }}>Pending</span>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    {/* Player 1 */}
-                    <div style={{ flex: 1, fontWeight: m.winner_id === m.player1_id ? 700 : 400, color: m.winner_id === m.player1_id ? 'var(--primary)' : 'var(--text-primary)' }}>
-                      {m.player1_name}
-                    </div>
-
-                    {/* Score */}
-                    <div style={{ padding: '4px 12px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', fontWeight: 800, fontSize: '16px' }}>
-                      {isDone ? `${m.player1_score} - ${m.player2_score}` : 'VS'}
-                    </div>
-
-                    {/* Player 2 */}
-                    <div style={{ flex: 1, textAlign: 'right', fontWeight: m.winner_id === m.player2_id ? 700 : m.winner_id === m.player1_id ? 400 : 400, color: m.winner_id === m.player2_id ? 'var(--primary)' : 'var(--text-primary)' }}>
-                      {m.player2_name}
-                    </div>
-                  </div>
-
-                  {/* Proof photo link */}
-                  {m.proof_image_url && (
-                    <a
-                      href={m.proof_image_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ fontSize: '11px', color: 'var(--primary)', textDecoration: 'underline' }}
-                    >
-                      📸 View Proof Photo
-                    </a>
-                  )}
-
-                  {/* Actions */}
-                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
-                    {!isDone && canSubmit && (
-                      <button
-                        onClick={() => setUploadingMatch(m)}
-                        className="btn btn-primary btn-block"
-                        style={{ padding: '6px 10px', fontSize: '12px' }}
-                      >
-                        Submit Score + Photo
-                      </button>
-                    )}
-                    {isDone && isAdmin && activeTournament?.created_by === currentUserId && (
-                      <button
-                        onClick={() => handleUnlockMatch(m.id)}
-                        className="btn btn-secondary btn-block"
-                        style={{ padding: '6px 10px', fontSize: '11px', gap: '4px' }}
-                      >
-                        <Unlock size={13} /> Unlock
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ flex: 1, fontWeight: m.winner_id === m.player1_id ? 700 : 400, color: m.winner_id === m.player1_id ? 'var(--primary)' : 'var(--text-primary)' }}>
+            {m.player1_name}
           </div>
+          <div style={{ padding: '4px 12px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', fontWeight: 800, fontSize: '16px' }}>
+            {isDone ? `${m.player1_score} - ${m.player2_score}` : 'VS'}
+          </div>
+          <div style={{ flex: 1, textAlign: 'right', fontWeight: m.winner_id === m.player2_id ? 700 : 400, color: m.winner_id === m.player2_id ? 'var(--primary)' : 'var(--text-primary)' }}>
+            {m.player2_name}
+          </div>
+        </div>
+
+        {m.proof_image_url && (
+          <a href={m.proof_image_url} target="_blank" rel="noopener noreferrer"
+            style={{ fontSize: '11px', color: 'var(--primary)', textDecoration: 'underline' }}>
+            View Proof Photo
+          </a>
+        )}
+
+        <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+          {!isDone && canSubmit && (
+            <button onClick={() => setUploadingMatch(m)} className="btn btn-primary btn-block"
+              style={{ padding: '6px 10px', fontSize: '12px' }}>
+              Submit Score + Photo
+            </button>
+          )}
+          {isDone && isAdmin && activeTournament?.created_by === currentUserId && (
+            <button onClick={() => handleUnlockMatch(m.id)} className="btn btn-secondary btn-block"
+              style={{ padding: '6px 10px', fontSize: '11px', gap: '4px' }}>
+              <Unlock size={13} /> Unlock
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderMatchesList = () => {
+    const groupMatches = matches.filter(m => m.stage === 'group');
+
+
+    const SectionHeader = ({ label, count, accent }: { label: string; count: number; accent: string }) => (
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '10px',
+        padding: '10px 14px', borderRadius: '10px',
+        backgroundColor: `${accent}14`,
+        border: `1px solid ${accent}30`,
+        marginBottom: '10px',
+      }}>
+        <div style={{ width: 4, height: 22, borderRadius: 2, backgroundColor: accent, flexShrink: 0 }} />
+        <span style={{ fontSize: '14px', fontWeight: 800, color: accent }}>{label}</span>
+        <span style={{
+          fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '10px',
+          backgroundColor: `${accent}20`, color: accent,
+        }}>
+          {count} matches
+        </span>
+      </div>
+    );
+
+
+    const knockoutStages = [
+      { key: 'round_of_16',   label: 'Round of 16',    accent: '#38bdf8' },
+      { key: 'quarter_final', label: 'Quarter-finals',  accent: '#f59e0b' },
+      { key: 'semi_final',    label: 'Semi-finals',     accent: '#a78bfa' },
+      { key: 'final',         label: 'Grand Final',     accent: '#eab308' },
+    ];
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+
+        {/* ── Group Stage ─────────────────────────────── */}
+        {groupMatches.length > 0 && (
+          <div>
+            <SectionHeader label="Group Stage" count={groupMatches.length} accent="#4ade80" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {groupMatches.map(m => renderMatchCard(m))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Knockout Sub-sections ────────────────────── */}
+        {knockoutStages.map(({ key, label, accent }) => {
+          const stageMatches = matches.filter(m => m.stage === key)
+            .sort((a, b) => a.match_number - b.match_number);
+          if (stageMatches.length === 0) return null;
+          return (
+            <div key={key}>
+              <SectionHeader label={label} count={stageMatches.length} accent={accent} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {stageMatches.map(m => renderMatchCard(m))}
+              </div>
+            </div>
+          );
+        })}
+
+        {matches.length === 0 && (
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px', textAlign: 'center', padding: '20px' }}>
+            No matches yet.
+          </p>
         )}
       </div>
     );
   };
+
+
+
+
 
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '20px 16px 100px' }}>
@@ -450,36 +477,42 @@ export const TournamentPage: React.FC<Props> = ({ currentUserId, currentUsername
         <div>
           {/* Tournament Bar */}
           <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            gap: '12px', backgroundColor: 'var(--bg-card)', padding: '12px 16px',
+            backgroundColor: 'var(--bg-card)', padding: '12px 14px',
             borderRadius: '12px', border: '1px solid var(--border-color)', marginBottom: '20px',
+            display: 'flex', flexDirection: 'column', gap: '10px',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '200px' }}>
-              <span style={{ fontSize: '13px', color: 'var(--text-muted)', fontWeight: 600 }}>Active Tournament:</span>
+            {/* Row 1: label */}
+            <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Active Tournament
+            </span>
+
+            {/* Row 2: dropdown + delete */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <select
                 className="input-field"
                 value={selectedTournamentId || ''}
                 onChange={e => setSelectedTournamentId(e.target.value)}
-                style={{ padding: '8px 12px', fontSize: '14px', fontWeight: 700, flex: 1 }}
+                style={{ padding: '8px 10px', fontSize: '13px', fontWeight: 700, flex: 1, minWidth: 0 }}
               >
                 {tournaments.map(t => (
                   <option key={t.id} value={t.id}>
-                    {t.title} ({t.player_count} Players) - [{t.status.replace('_', ' ').toUpperCase()}]
+                    {t.title} · {t.player_count}P · {t.status.replace(/_/g, ' ').toUpperCase()}
                   </option>
                 ))}
               </select>
-            </div>
 
-            {isAdmin && activeTournament && activeTournament.created_by === currentUserId && (
-              <button
-                onClick={() => handleDeleteTournament(activeTournament.id, activeTournament.title)}
-                className="btn btn-secondary"
-                style={{ color: '#f87171', padding: '8px 12px', fontSize: '12px', gap: '6px' }}
-              >
-                <Trash2 size={15} /> Delete
-              </button>
-            )}
+              {isAdmin && activeTournament && activeTournament.created_by === currentUserId && (
+                <button
+                  onClick={() => handleDeleteTournament(activeTournament.id, activeTournament.title)}
+                  className="btn btn-secondary"
+                  style={{ color: '#f87171', padding: '8px 10px', fontSize: '12px', gap: '4px', flexShrink: 0 }}
+                >
+                  <Trash2 size={15} />
+                </button>
+              )}
+            </div>
           </div>
+
 
           {/* Active Tournament Content */}
           {loadingDetails ? (
@@ -516,10 +549,36 @@ export const TournamentPage: React.FC<Props> = ({ currentUserId, currentUsername
 
               {/* Tab Views */}
               {activeTab === 'standings' && renderGroupTables()}
-              {activeTab === 'matches' && renderMatchesList()}
+
+              {activeTab === 'matches' && (
+                <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
+                  {/* Left: Match upload cards */}
+                  <div style={{ flex: '0 0 auto', width: '100%', maxWidth: 480 }}>
+                    {renderMatchesList()}
+                  </div>
+                  {/* Right: Bracket viewer */}
+                  <div style={{
+                    flex: 1, minWidth: 0,
+                    backgroundColor: 'var(--bg-card)', borderRadius: '16px',
+                    border: '1px solid var(--border-color)', padding: '16px',
+                    position: 'sticky', top: '80px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                      <Trophy size={16} style={{ color: 'var(--primary)' }} />
+                      <span style={{ fontWeight: 700, fontSize: '14px' }}>Knockout Bracket</span>
+                    </div>
+                    <TournamentBracket matches={matches} players={players} playerCount={activeTournament.player_count} />
+                  </div>
+                </div>
+              )}
+
               {activeTab === 'bracket' && (
-                <div className="card" style={{ border: '1px solid var(--border-color)' }}>
-                  <TournamentBracket matches={matches} playerCount={activeTournament.player_count} />
+                <div className="card" style={{ border: '1px solid var(--border-color)', padding: '20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid var(--border-color)' }}>
+                    <Trophy size={20} style={{ color: 'var(--primary)' }} />
+                    <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Knockout Bracket</h3>
+                  </div>
+                  <TournamentBracket matches={matches} players={players} playerCount={activeTournament.player_count} />
                 </div>
               )}
             </div>

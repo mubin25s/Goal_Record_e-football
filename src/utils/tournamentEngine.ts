@@ -11,6 +11,7 @@ export interface Match {
   stage: 'group' | 'round_of_16' | 'quarter_final' | 'semi_final' | 'final';
   group_letter?: string;
   match_number: number;
+  leg?: number;
   player1_id: string;
   player1_name: string;
   player2_id: string;
@@ -45,7 +46,11 @@ export const ALLOWED_PLAYER_COUNTS = [3, 4, 5, 8, 10, 12, 16, 32] as const;
 /**
  * Standard Berger Round-Robin Fixture Generator
  */
-export function generateRoundRobinFixtures(players: Player[], groupLetter: string): Omit<Match, 'id' | 'tournament_id'>[] {
+export function generateRoundRobinFixtures(
+  players: Player[],
+  groupLetter: string,
+  matchFormat: 'single' | 'home_away' = 'single'
+): Omit<Match, 'id' | 'tournament_id'>[] {
   const n = players.length;
   const list = [...players];
   const isOdd = n % 2 !== 0;
@@ -78,6 +83,7 @@ export function generateRoundRobinFixtures(players: Player[], groupLetter: strin
           stage: 'group',
           group_letter: groupLetter,
           match_number: matchNumber++,
+          leg: 1,
           player1_id: p1.id,
           player1_name: p1.name,
           player2_id: p2.id,
@@ -87,6 +93,26 @@ export function generateRoundRobinFixtures(players: Player[], groupLetter: strin
           status: 'pending',
         });
       }
+    }
+  }
+
+  if (matchFormat === 'home_away') {
+    const leg1Count = fixtures.length;
+    for (let i = 0; i < leg1Count; i++) {
+      const f = fixtures[i];
+      fixtures.push({
+        stage: 'group',
+        group_letter: groupLetter,
+        match_number: matchNumber++,
+        leg: 2,
+        player1_id: f.player2_id,
+        player1_name: f.player2_name,
+        player2_id: f.player1_id,
+        player2_name: f.player1_name,
+        player1_score: null,
+        player2_score: null,
+        status: 'pending',
+      });
     }
   }
 
@@ -224,14 +250,19 @@ export function calculateGroupStandings(
     if (b.won !== a.won) return b.won - a.won;
 
     // Head to head check
-    const h2h = groupMatches.find(
+    const h2hMatches = groupMatches.filter(
       m => (m.player1_id === a.player_id && m.player2_id === b.player_id) ||
            (m.player1_id === b.player_id && m.player2_id === a.player_id)
     );
-    if (h2h && (h2h.status === 'completed' || h2h.status === 'locked')) {
-      if (h2h.winner_id === a.player_id) return -1;
-      if (h2h.winner_id === b.player_id) return 1;
-    }
+    let aH2hWins = 0;
+    let bH2hWins = 0;
+    h2hMatches.forEach(h2h => {
+      if (h2h.status === 'completed' || h2h.status === 'locked') {
+        if (h2h.winner_id === a.player_id) aH2hWins++;
+        if (h2h.winner_id === b.player_id) bH2hWins++;
+      }
+    });
+    if (aH2hWins !== bH2hWins) return bH2hWins - aH2hWins;
 
     return a.player_name.localeCompare(b.player_name);
   });
@@ -280,10 +311,52 @@ function getQualificationCountPerGroup(totalPlayers: number, _groupLetter: strin
  */
 export function generateKnockoutFixtures(
   playerCount: number,
-  allGroupStandings: { [groupLetter: string]: GroupStanding[] }
+  allGroupStandings: { [groupLetter: string]: GroupStanding[] },
+  matchFormat: 'single' | 'home_away' = 'single'
 ): Omit<Match, 'id' | 'tournament_id'>[] {
   const knockoutMatches: Omit<Match, 'id' | 'tournament_id'>[] = [];
-  let matchNum = 1;
+
+  const pushPairing = (
+    stage: 'round_of_16' | 'quarter_final' | 'semi_final' | 'final',
+    mNum: number,
+    p1: { id: string; name: string },
+    p2: { id: string; name: string }
+  ) => {
+    if (stage === 'final' || matchFormat !== 'home_away') {
+      knockoutMatches.push({
+        stage,
+        match_number: mNum,
+        leg: 1,
+        player1_id: p1.id,
+        player1_name: p1.name,
+        player2_id: p2.id,
+        player2_name: p2.name,
+        status: 'pending',
+      });
+    } else {
+      // Home & Away 2-leg knockout match
+      knockoutMatches.push({
+        stage,
+        match_number: mNum,
+        leg: 1,
+        player1_id: p1.id,
+        player1_name: p1.name,
+        player2_id: p2.id,
+        player2_name: p2.name,
+        status: 'pending',
+      });
+      knockoutMatches.push({
+        stage,
+        match_number: mNum,
+        leg: 2,
+        player1_id: p2.id,
+        player1_name: p2.name,
+        player2_id: p1.id,
+        player2_name: p1.name,
+        status: 'pending',
+      });
+    }
+  };
 
   if (playerCount === 3 || playerCount === 4) {
     // Top 2 of Group A -> Final
@@ -291,115 +364,41 @@ export function generateKnockoutFixtures(
     const p1 = groupA[0];
     const p2 = groupA[1];
     if (p1 && p2) {
-      knockoutMatches.push({
-        stage: 'final',
-        match_number: matchNum++,
-        player1_id: p1.player_id,
-        player1_name: p1.player_name,
-        player2_id: p2.player_id,
-        player2_name: p2.player_name,
-        status: 'pending',
-      });
+      pushPairing('final', 1, { id: p1.player_id, name: p1.player_name }, { id: p2.player_id, name: p2.player_name });
     }
   } else if (playerCount === 5) {
     // Top 4 of Group A -> Semi-finals (1 vs 4, 2 vs 3) -> Final
     const groupA = allGroupStandings['A'] || [];
     if (groupA.length >= 4) {
-      knockoutMatches.push({
-        stage: 'semi_final',
-        match_number: 1,
-        player1_id: groupA[0].player_id, player1_name: groupA[0].player_name,
-        player2_id: groupA[3].player_id, player2_name: groupA[3].player_name,
-        status: 'pending',
-      });
-      knockoutMatches.push({
-        stage: 'semi_final',
-        match_number: 2,
-        player1_id: groupA[1].player_id, player1_name: groupA[1].player_name,
-        player2_id: groupA[2].player_id, player2_name: groupA[2].player_name,
-        status: 'pending',
-      });
+      pushPairing('semi_final', 1, { id: groupA[0].player_id, name: groupA[0].player_name }, { id: groupA[3].player_id, name: groupA[3].player_name });
+      pushPairing('semi_final', 2, { id: groupA[1].player_id, name: groupA[1].player_name }, { id: groupA[2].player_id, name: groupA[2].player_name });
     }
   } else if (playerCount === 8) {
     // Group A & B top 2 -> SF (A1 vs B2, B1 vs A2)
     const gA = allGroupStandings['A'] || [];
     const gB = allGroupStandings['B'] || [];
     if (gA.length >= 2 && gB.length >= 2) {
-      knockoutMatches.push({
-        stage: 'semi_final',
-        match_number: 1,
-        player1_id: gA[0].player_id, player1_name: gA[0].player_name,
-        player2_id: gB[1].player_id, player2_name: gB[1].player_name,
-        status: 'pending',
-      });
-      knockoutMatches.push({
-        stage: 'semi_final',
-        match_number: 2,
-        player1_id: gB[0].player_id, player1_name: gB[0].player_name,
-        player2_id: gA[1].player_id, player2_name: gA[1].player_name,
-        status: 'pending',
-      });
+      pushPairing('semi_final', 1, { id: gA[0].player_id, name: gA[0].player_name }, { id: gB[1].player_id, name: gB[1].player_name });
+      pushPairing('semi_final', 2, { id: gB[0].player_id, name: gB[0].player_name }, { id: gA[1].player_id, name: gA[1].player_name });
     }
   } else if (playerCount === 10) {
     // Top 3 from Group A & B -> QF: A1 vs B3, A2 vs B1, A3 vs B2
     const gA = allGroupStandings['A'] || [];
     const gB = allGroupStandings['B'] || [];
     if (gA.length >= 3 && gB.length >= 3) {
-      knockoutMatches.push({
-        stage: 'quarter_final',
-        match_number: 1,
-        player1_id: gA[0].player_id, player1_name: gA[0].player_name,
-        player2_id: gB[2].player_id, player2_name: gB[2].player_name,
-        status: 'pending',
-      });
-      knockoutMatches.push({
-        stage: 'quarter_final',
-        match_number: 2,
-        player1_id: gA[1].player_id, player1_name: gA[1].player_name,
-        player2_id: gB[0].player_id, player2_name: gB[0].player_name,
-        status: 'pending',
-      });
-      knockoutMatches.push({
-        stage: 'quarter_final',
-        match_number: 3,
-        player1_id: gA[2].player_id, player1_name: gA[2].player_name,
-        player2_id: gB[1].player_id, player2_name: gB[1].player_name,
-        status: 'pending',
-      });
+      pushPairing('quarter_final', 1, { id: gA[0].player_id, name: gA[0].player_name }, { id: gB[2].player_id, name: gB[2].player_name });
+      pushPairing('quarter_final', 2, { id: gA[1].player_id, name: gA[1].player_name }, { id: gB[0].player_id, name: gB[0].player_name });
+      pushPairing('quarter_final', 3, { id: gA[2].player_id, name: gA[2].player_name }, { id: gB[1].player_id, name: gB[1].player_name });
     }
   } else if (playerCount === 12) {
     // Top 4 from Group A & B -> QF: A1 vs B4, A2 vs B3, B1 vs A4, B2 vs A3
     const gA = allGroupStandings['A'] || [];
     const gB = allGroupStandings['B'] || [];
     if (gA.length >= 4 && gB.length >= 4) {
-      knockoutMatches.push({
-        stage: 'quarter_final',
-        match_number: 1,
-        player1_id: gA[0].player_id, player1_name: gA[0].player_name,
-        player2_id: gB[3].player_id, player2_name: gB[3].player_name,
-        status: 'pending',
-      });
-      knockoutMatches.push({
-        stage: 'quarter_final',
-        match_number: 2,
-        player1_id: gA[1].player_id, player1_name: gA[1].player_name,
-        player2_id: gB[2].player_id, player2_name: gB[2].player_name,
-        status: 'pending',
-      });
-      knockoutMatches.push({
-        stage: 'quarter_final',
-        match_number: 3,
-        player1_id: gB[0].player_id, player1_name: gB[0].player_name,
-        player2_id: gA[3].player_id, player2_name: gA[3].player_name,
-        status: 'pending',
-      });
-      knockoutMatches.push({
-        stage: 'quarter_final',
-        match_number: 4,
-        player1_id: gB[1].player_id, player1_name: gB[1].player_name,
-        player2_id: gA[2].player_id, player2_name: gA[2].player_name,
-        status: 'pending',
-      });
+      pushPairing('quarter_final', 1, { id: gA[0].player_id, name: gA[0].player_name }, { id: gB[3].player_id, name: gB[3].player_name });
+      pushPairing('quarter_final', 2, { id: gA[1].player_id, name: gA[1].player_name }, { id: gB[2].player_id, name: gB[2].player_name });
+      pushPairing('quarter_final', 3, { id: gB[0].player_id, name: gB[0].player_name }, { id: gA[3].player_id, name: gA[3].player_name });
+      pushPairing('quarter_final', 4, { id: gB[1].player_id, name: gB[1].player_name }, { id: gA[2].player_id, name: gA[2].player_name });
     }
   } else if (playerCount === 16) {
     // Top 2 from 4 groups -> QF: A1 vs B2, C1 vs D2, B1 vs A2, D1 vs C2
@@ -408,34 +407,10 @@ export function generateKnockoutFixtures(
     const gC = allGroupStandings['C'] || [];
     const gD = allGroupStandings['D'] || [];
     if (gA.length >= 2 && gB.length >= 2 && gC.length >= 2 && gD.length >= 2) {
-      knockoutMatches.push({
-        stage: 'quarter_final',
-        match_number: 1,
-        player1_id: gA[0].player_id, player1_name: gA[0].player_name,
-        player2_id: gB[1].player_id, player2_name: gB[1].player_name,
-        status: 'pending',
-      });
-      knockoutMatches.push({
-        stage: 'quarter_final',
-        match_number: 2,
-        player1_id: gC[0].player_id, player1_name: gC[0].player_name,
-        player2_id: gD[1].player_id, player2_name: gD[1].player_name,
-        status: 'pending',
-      });
-      knockoutMatches.push({
-        stage: 'quarter_final',
-        match_number: 3,
-        player1_id: gB[0].player_id, player1_name: gB[0].player_name,
-        player2_id: gA[1].player_id, player2_name: gA[1].player_name,
-        status: 'pending',
-      });
-      knockoutMatches.push({
-        stage: 'quarter_final',
-        match_number: 4,
-        player1_id: gD[0].player_id, player1_name: gD[0].player_name,
-        player2_id: gC[1].player_id, player2_name: gC[1].player_name,
-        status: 'pending',
-      });
+      pushPairing('quarter_final', 1, { id: gA[0].player_id, name: gA[0].player_name }, { id: gB[1].player_id, name: gB[1].player_name });
+      pushPairing('quarter_final', 2, { id: gC[0].player_id, name: gC[0].player_name }, { id: gD[1].player_id, name: gD[1].player_name });
+      pushPairing('quarter_final', 3, { id: gB[0].player_id, name: gB[0].player_name }, { id: gA[1].player_id, name: gA[1].player_name });
+      pushPairing('quarter_final', 4, { id: gD[0].player_id, name: gD[0].player_name }, { id: gC[1].player_id, name: gC[1].player_name });
     }
   } else if (playerCount === 32) {
     // Top 2 from 8 groups -> R16
@@ -452,13 +427,7 @@ export function generateKnockoutFixtures(
         { p1: g['H'][0], p2: g['G'][1] },
       ];
       pairings.forEach((pair, idx) => {
-        knockoutMatches.push({
-          stage: 'round_of_16',
-          match_number: idx + 1,
-          player1_id: pair.p1.player_id, player1_name: pair.p1.player_name,
-          player2_id: pair.p2.player_id, player2_name: pair.p2.player_name,
-          status: 'pending',
-        });
+        pushPairing('round_of_16', idx + 1, { id: pair.p1.player_id, name: pair.p1.player_name }, { id: pair.p2.player_id, name: pair.p2.player_name });
       });
     }
   }

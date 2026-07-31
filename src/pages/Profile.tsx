@@ -165,8 +165,9 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
           }
         </div>
         <div style={{ flex: 1, minWidth: '200px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
             <h3 style={{ fontSize: '26px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>{username}</h3>
+            <TournamentStarsBadge starData={tournamentStars} compact={true} />
           </div>
 
           <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '4px' }}>{userEmail}</p>
@@ -180,7 +181,6 @@ export const Profile: React.FC<ProfileProps> = ({ currentUserId, userEmail, onPr
             <div style={{ display: 'inline-flex', background: 'rgba(169,14,2,0.08)', padding: '6px 14px', borderRadius: '20px', border: '1px solid rgba(169,14,2,0.2)', fontSize: '13px', fontWeight: 'bold', color: titleColor }}>
               {userTitle}
             </div>
-            <TournamentStarsBadge starData={tournamentStars} />
           </div>
         </div>
       </div>
