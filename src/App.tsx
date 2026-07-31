@@ -32,16 +32,20 @@ function App() {
         setShowLogin(false);
         setLoading(false);
 
-        // Upsert profile to Supabase, then fetch custom username
-        await upsertProfile({
-          id:         firebaseUser.uid,
-          username:   firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Player',
-          avatar_url: firebaseUser.photoURL || null,
-          email:      firebaseUser.email || null,
-        });
-        const sbProfile = await fetchProfile(firebaseUser.uid);
-        if (sbProfile?.username) {
-          setProfile({ username: sbProfile.username, avatarUrl: sbProfile.avatar_url || firebaseUser.photoURL || undefined });
+        try {
+          // Upsert profile to Supabase, then fetch custom username
+          await upsertProfile({
+            id:         firebaseUser.uid,
+            username:   firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Player',
+            avatar_url: firebaseUser.photoURL || null,
+            email:      firebaseUser.email || null,
+          });
+          const sbProfile = await fetchProfile(firebaseUser.uid);
+          if (sbProfile?.username) {
+            setProfile({ username: sbProfile.username, avatarUrl: sbProfile.avatar_url || firebaseUser.photoURL || undefined });
+          }
+        } catch (err) {
+          console.error('Failed to sync profile:', err);
         }
       } else {
         setProfile(null);

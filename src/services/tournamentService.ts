@@ -137,7 +137,7 @@ export async function createTournament(
   // 4. Insert Fixtures (with fallback if leg column missing)
   let { error: mErr } = await supabase.from('tournament_matches').insert(allFixtures);
   if (mErr && mErr.message?.includes('leg')) {
-    const cleanFixtures = allFixtures.map(({ leg, ...rest }) => rest);
+    const cleanFixtures = allFixtures.map(({ leg: _leg, ...rest }) => rest);
     const retryRes = await supabase.from('tournament_matches').insert(cleanFixtures);
     mErr = retryRes.error;
   }
@@ -386,9 +386,11 @@ export async function checkAndAdvanceTournamentStage(tournamentId: string): Prom
 
         let { error: kErr } = await supabase.from('tournament_matches').insert(knockoutInserts);
         if (kErr && kErr.message?.includes('leg')) {
-          const cleanKnockout = knockoutInserts.map(({ leg, ...rest }: any) => rest);
-          await supabase.from('tournament_matches').insert(cleanKnockout);
+          const cleanKnockout = knockoutInserts.map(({ leg: _leg, ...rest }: any) => rest);
+          const retryRes = await supabase.from('tournament_matches').insert(cleanKnockout);
+          kErr = retryRes.error;
         }
+        if (kErr) throw new Error(`Failed to save knockout fixtures: ${kErr.message}`);
       }
 
       // Update tournament status to knockout_stage
@@ -571,9 +573,11 @@ export async function checkAndAdvanceTournamentStage(tournamentId: string): Prom
         if (nextInserts.length > 0) {
           let { error: nErr } = await supabase.from('tournament_matches').insert(nextInserts);
           if (nErr && nErr.message?.includes('leg')) {
-            const cleanNext = nextInserts.map(({ leg, ...rest }: any) => rest);
-            await supabase.from('tournament_matches').insert(cleanNext);
+            const cleanNext = nextInserts.map(({ leg: _leg, ...rest }: any) => rest);
+            const retryRes = await supabase.from('tournament_matches').insert(cleanNext);
+            nErr = retryRes.error;
           }
+          if (nErr) throw new Error(`Failed to save next round fixtures: ${nErr.message}`);
         }
       }
     }

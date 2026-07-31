@@ -6,12 +6,13 @@
 
 -- 1. PROFILES TABLE (maps Firebase UIDs → user data)
 CREATE TABLE IF NOT EXISTS public.profiles (
-    id          TEXT PRIMARY KEY,  -- Firebase UID
-    username    TEXT NOT NULL,
-    avatar_url  TEXT,
-    email       TEXT,
-    created_at  TIMESTAMPTZ DEFAULT NOW() NOT NULL,
-    updated_at  TIMESTAMPTZ DEFAULT NOW() NOT NULL
+    id            TEXT PRIMARY KEY,  -- Firebase UID
+    username      TEXT NOT NULL,
+    avatar_url    TEXT,
+    email         TEXT,
+    efootball_id  TEXT,              -- eFootball in-game username shown on profile
+    created_at    TIMESTAMPTZ DEFAULT NOW() NOT NULL,
+    updated_at    TIMESTAMPTZ DEFAULT NOW() NOT NULL
 );
 
 -- 2. POSTS TABLE
@@ -67,6 +68,28 @@ ALTER TABLE public.posts          DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.post_reactions DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.post_comments  DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.matches        DISABLE ROW LEVEL SECURITY;
+
+-- 6b. MATCH COMMENTS TABLE (banter on match posts)
+CREATE TABLE IF NOT EXISTS public.match_comments (
+    id         UUID        DEFAULT gen_random_uuid() PRIMARY KEY,
+    match_id   UUID        NOT NULL REFERENCES public.matches(id) ON DELETE CASCADE,
+    user_id    TEXT        NOT NULL,  -- Firebase UID
+    content    TEXT        NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW() NOT NULL
+);
+
+-- 6c. MATCH REACTIONS TABLE (reactions on match posts)
+-- PK on (match_id, user_id) powers upsert with onConflict: 'match_id,user_id'
+CREATE TABLE IF NOT EXISTS public.match_reactions (
+    match_id UUID NOT NULL REFERENCES public.matches(id) ON DELETE CASCADE,
+    user_id  TEXT NOT NULL,  -- Firebase UID
+    type     TEXT NOT NULL CHECK (type IN ('like','love','haha','sad','wow')),
+    PRIMARY KEY (match_id, user_id)
+);
+
+-- Disable RLS for the match comment/reaction tables too
+ALTER TABLE public.match_comments   DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.match_reactions  DISABLE ROW LEVEL SECURITY;
 
 -- 6. TOURNAMENTS TABLE
 CREATE TABLE IF NOT EXISTS public.tournaments (

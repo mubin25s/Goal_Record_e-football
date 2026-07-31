@@ -150,7 +150,18 @@ export const PostCard: React.FC<PostCardProps> = ({ match, currentUser, onAuthRe
         user_id:  currentUser.uid,
         content:  text,
       });
-      // Refresh comments to get usernames and server timestamps
+    } catch (err: any) {
+      // Remove the optimistic comment and restore the text on failure
+      setComments(prev => prev.filter(c => c.id !== optimistic.id));
+      setCommentText(text);
+      alert('Could not comment: ' + err.message);
+      return;
+    } finally {
+      setPosting(false);
+    }
+
+    // Refresh comments to get usernames and server timestamps
+    try {
       const [fresh, profiles] = await Promise.all([
         fetchMatchComments(match.id),
         fetchAllProfiles()
@@ -167,10 +178,8 @@ export const PostCard: React.FC<PostCardProps> = ({ match, currentUser, onAuthRe
           createdAt: r.created_at,
         };
       }));
-    } catch (err: any) {
-      alert('Could not comment: ' + err.message);
-    } finally {
-      setPosting(false);
+    } catch (err) {
+      console.error('Failed to refresh comments:', err);
     }
   };
 
