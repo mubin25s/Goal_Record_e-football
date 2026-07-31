@@ -232,16 +232,28 @@ export async function fetchAllTournaments(): Promise<Tournament[]> {
  * Fetch Tournament Details (Players & Matches)
  */
 export async function fetchTournamentDetails(tournamentId: string) {
-  const [tRes, pRes, mRes] = await Promise.all([
+  const [tRes, pRes, mRes, profilesRes] = await Promise.all([
     supabase.from('tournaments').select('*').eq('id', tournamentId).single(),
     supabase.from('tournament_players').select('*').eq('tournament_id', tournamentId),
     supabase.from('tournament_matches').select('*').eq('tournament_id', tournamentId).order('match_number', { ascending: true }),
+    supabase.from('profiles').select('id, avatar_url, username'),
   ]);
 
   if (tRes.error) throw new Error(tRes.error.message);
 
+  const profileMap: Record<string, string | null> = {};
+  if (profilesRes.data) {
+    profilesRes.data.forEach((prof: any) => {
+      if (prof.id) profileMap[prof.id] = prof.avatar_url || null;
+    });
+  }
+
   const tournament = tRes.data as Tournament;
-  const players = (pRes.data as TournamentPlayer[]) ?? [];
+  const rawPlayers = (pRes.data as TournamentPlayer[]) ?? [];
+  const players = rawPlayers.map(p => ({
+    ...p,
+    avatar_url: p.avatar_url || profileMap[p.player_id] || profileMap[p.id] || null,
+  }));
   const matches = (mRes.data as TournamentMatch[]) ?? [];
 
   return { tournament, players, matches };

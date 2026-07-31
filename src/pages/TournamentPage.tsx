@@ -37,6 +37,15 @@ export const TournamentPage: React.FC<Props> = ({ currentUserId, currentUsername
 
   const isAdmin = currentUserId !== null; // Authenticated users can create/administer tournaments
 
+  const avatarMap = React.useMemo(() => {
+    const map: Record<string, string | null> = {};
+    players.forEach(p => {
+      if (p.player_id) map[p.player_id] = p.avatar_url || null;
+      if (p.id) map[p.id] = p.avatar_url || null;
+    });
+    return map;
+  }, [players]);
+
   // Load tournament list
   const loadTournaments = React.useCallback(async () => {
     try {
@@ -314,15 +323,58 @@ export const TournamentPage: React.FC<Props> = ({ currentUserId, currentUsername
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div style={{ flex: 1, fontWeight: m.winner_id === m.player1_id ? 700 : 400, color: m.winner_id === m.player1_id ? 'var(--primary)' : 'var(--text-primary)' }}>
-            {m.player1_name}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+          {/* Player 1 */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+            <div style={{
+              width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0,
+              backgroundColor: 'var(--primary)', color: 'white', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '11px', overflow: 'hidden',
+              border: m.winner_id === m.player1_id ? '2px solid #eab308' : '1px solid rgba(255,255,255,0.15)',
+              boxShadow: m.winner_id === m.player1_id ? '0 0 6px rgba(234,179,8,0.5)' : 'none',
+            }}>
+              {avatarMap[m.player1_id] ? (
+                <img src={avatarMap[m.player1_id]!} alt="" referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                m.player1_name.slice(0, 2).toUpperCase()
+              )}
+            </div>
+            <span style={{
+              fontWeight: m.winner_id === m.player1_id ? 700 : 400,
+              color: m.winner_id === m.player1_id ? 'var(--primary)' : 'var(--text-primary)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px'
+            }}>
+              {m.player1_name}
+            </span>
           </div>
-          <div style={{ padding: '4px 12px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', fontWeight: 800, fontSize: '16px' }}>
+
+          {/* Score */}
+          <div style={{ padding: '4px 10px', borderRadius: '8px', backgroundColor: 'rgba(255,255,255,0.05)', fontWeight: 800, fontSize: '15px', flexShrink: 0 }}>
             {isDone ? `${m.player1_score} - ${m.player2_score}` : 'VS'}
           </div>
-          <div style={{ flex: 1, textAlign: 'right', fontWeight: m.winner_id === m.player2_id ? 700 : 400, color: m.winner_id === m.player2_id ? 'var(--primary)' : 'var(--text-primary)' }}>
-            {m.player2_name}
+
+          {/* Player 2 */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px', flex: 1, minWidth: 0 }}>
+            <span style={{
+              fontWeight: m.winner_id === m.player2_id ? 700 : 400,
+              color: m.winner_id === m.player2_id ? 'var(--primary)' : 'var(--text-primary)',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: '13px', textAlign: 'right'
+            }}>
+              {m.player2_name}
+            </span>
+            <div style={{
+              width: '28px', height: '28px', borderRadius: '50%', flexShrink: 0,
+              backgroundColor: 'var(--primary)', color: 'white', display: 'flex',
+              alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '11px', overflow: 'hidden',
+              border: m.winner_id === m.player2_id ? '2px solid #eab308' : '1px solid rgba(255,255,255,0.15)',
+              boxShadow: m.winner_id === m.player2_id ? '0 0 6px rgba(234,179,8,0.5)' : 'none',
+            }}>
+              {avatarMap[m.player2_id] ? (
+                <img src={avatarMap[m.player2_id]!} alt="" referrerPolicy="no-referrer" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : (
+                m.player2_name.slice(0, 2).toUpperCase()
+              )}
+            </div>
           </div>
         </div>
 
